@@ -11,40 +11,30 @@
 #include "my_secmalloc.h"
 #include "my_secmalloc_private.h"
 
-//global pool
-void    *metadata_pool = NULL;
-void    *data_pool = NULL;
 
+void *metadata_pool;
+void *data_pool;
+
+void *metadata_poo
+void *data_pool = mmap(NULL,16000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MA
 
 void    *my_init_metadata_pool()
 {
-    metadata_pool = mmap(NULL, 10240, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-    
-    char **ptr;
-    ptr = &metadata_pool;
-
-    //init all metadata block in a linked list with all alltribute setup to null except next
-    for (int i = 0; i < 256;i++)
-    {
-        struct metadata *metadata = *ptr + (i* 16);
-        metadata->next = *ptr + ((i + 1) * 16);
-    }
-
-    my_log("metadata pool and chained list setup");
+    void *metadata_pool = mmap(NULL, 1000, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     return metadata_pool;
 }
 
 void    *my_init_data_pool()
 {
-    data_pool = mmap(NULL,1024000, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    void *data_pool = mmap(NULL,16000, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     return data_pool;
 
 }
 
 
-int    clean_metadata_pool()
+int    clean_metadata_pool(void  *metadata_pool)
 {
-        int res = munmap(metadata_pool,10240);
+        int res = munmap(metadata_pool,1000);
         if (res == 0)
         {   
             my_log("munmap success\n");
@@ -53,9 +43,9 @@ int    clean_metadata_pool()
         return -1;
 }
 
-int     clean_data_pool()
+int     clean_data_pool(void *data_pool)
 {
-    int res = munmap(data_pool,1024000);
+    int res = munmap(data_pool,16000);
     if (res == 0)
     {
         my_log("munmap success\n");
@@ -82,9 +72,7 @@ void    my_log(const char *fmt, ...)
 
 void    *my_malloc(size_t size)
 {
-    if (size == 0) {
-        return NULL;
-    }
+    (void) size;
     return NULL;
 }
 

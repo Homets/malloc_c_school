@@ -12,7 +12,7 @@
 Test(mmap, test_simple_mmap)
 {
     printf("Ici on fait un test simple de mmap\n");
-    void *ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    void *ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON , -1, 0);
     cr_expect(ptr != NULL);
     int res = munmap(ptr, 4096);
     cr_expect(res == 0);
@@ -31,9 +31,20 @@ Test(log, test_log, .init=cr_redirect_stderr)
 
 Test(metadata_pool, create_clean_metadata_pool)
 {   
-    void *ptr =  my_init_pool();
-    cr_expect(ptr != NULL);
-    int res = clean_metadata_pool(ptr);
-    cr_expect(res == 0);
-
+    my_init_metadata_pool();
+    my_log("%p\n", metadata_pool);
 }
+
+Test(data_pool, create_clean_data_pool)
+{
+    my_init_metadata_pool();
+    my_init_data_pool();
+    my_log("%p\n", data_pool);
+    cr_assert(metadata_pool != NULL);
+    cr_assert(data_pool != NULL);
+    cr_assert(clean_metadata_pool() == 0);
+    cr_assert(clean_data_pool() == 0);
+}
+
+
+

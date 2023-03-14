@@ -5,18 +5,26 @@
  * Ici vous pourrez faire toutes les déclarations de variables/fonctions pour votre usage interne
  * */
 
+extern void *metadata_pool;
+extern void *data_pool;
+
+
 struct      metadata
 {
-    int                 block_pointer;
-    int                 block_state; //0 allocated | 1 free
+    int                 *block_pointer;
     unsigned long       block_size;
+    int                 *next;
 
 };
 
 
-void*       my_init_pool();
+void        *my_init_metadata_pool();
 
-int        clean_metadata_pool(void *metadata_pool);
+void        *my_init_data_pool();
+
+int         clean_metadata_pool();
+
+int         clean_data_pool();
 
 void        my_log(const char *fmt,...);
 
