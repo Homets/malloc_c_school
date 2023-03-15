@@ -46,5 +46,16 @@ Test(data_pool, create_clean_data_pool)
     cr_assert(clean_data_pool() == 0);
 }
 
-
-
+Test(data_pool, test_all_metadata_pool)
+{
+    my_init_metadata_pool();
+    int i = 0;
+    struct metadata *m = metadata_pool;
+    while( i < 5)
+    {
+        my_log("%p\n", m->next);
+        i = i + 1;
+        m = m->next;
+    }
+    cr_assert(clean_metadata_pool() == 0);
+}

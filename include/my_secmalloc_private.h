@@ -13,7 +13,7 @@ struct      metadata
 {
     int                 *block_pointer;
     unsigned long       block_size;
-    int                 *next;
+    struct metadata     *next;
 
 };
 

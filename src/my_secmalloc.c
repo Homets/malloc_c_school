@@ -18,16 +18,18 @@ void    *data_pool = NULL;
 
 void    *my_init_metadata_pool()
 {
-    metadata_pool = mmap(NULL, 10240, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    metadata_pool = mmap(NULL, 3144, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     
-    char **ptr;
+    void **ptr;
     ptr = &metadata_pool;
 
     //init all metadata block in a linked list with all alltribute setup to null except next
-    for (int i = 0; i < 256;i++)
+    for (int i = 0; i < 262;i++)
     {
-        struct metadata *metadata = *ptr + (i* 16);
-        metadata->next = *ptr + ((i + 1) * 16);
+        struct metadata *metadata = *ptr + (i * 12);
+        if (i < 261){
+            metadata->next = *ptr + ((i + 1) * 12);
+        }
     }
 
     my_log("metadata pool and chained list setup");
@@ -36,7 +38,7 @@ void    *my_init_metadata_pool()
 
 void    *my_init_data_pool()
 {
-    data_pool = mmap(NULL,1024000, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    data_pool = mmap(NULL,314400, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     return data_pool;
 
 }
@@ -44,7 +46,7 @@ void    *my_init_data_pool()
 
 int    clean_metadata_pool()
 {
-        int res = munmap(metadata_pool,10240);
+        int res = munmap(metadata_pool,3144);
         if (res == 0)
         {   
             my_log("munmap success\n");
@@ -55,7 +57,7 @@ int    clean_metadata_pool()
 
 int     clean_data_pool()
 {
-    int res = munmap(data_pool,1024000);
+    int res = munmap(data_pool,314400);
     if (res == 0)
     {
         my_log("munmap success\n");
@@ -80,10 +82,27 @@ void    my_log(const char *fmt, ...)
     write(2, buf, strlen(buf));
 }
 
-void    *my_malloc(size_t size)
-{
-    if (size == 0) {
-        return NULL;
+void        *my_malloc(size_t size)
+{  
+    if (size == 0){
+        my_log("You need to specify a size");
+        return 0;
+    }
+    //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
+    int **ptr; 
+    ptr = &data_pool;
+
+    //search a descriptor block available
+    struct metadata *metadata_available = metadata_pool;
+    while (metadata_available->next != NULL){
+        if (metadata_available->block_pointer == NULL){
+            metadata_available->block_pointer = ptr;
+            metadata_available->block_size = size;
+            break;
+        } else {
+            ptr += metadata_available->block_size;
+            metadata_available = metadata_available->next;
+        }
     }
     return NULL;
 }
