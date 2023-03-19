@@ -24,15 +24,17 @@ void    *my_init_metadata_pool()
     ptr = &metadata_pool;
 
     //init all metadata block in a linked list with all alltribute setup to null except next
-    for (int i = 0; i < 262;i++)
+    for (int i = 0; i < 131;i++)
     {
-        struct metadata *metadata = *ptr + (i * 12);
-        if (i < 261){
-            metadata->next = *ptr + ((i + 1) * 12);
+        struct metadata *metadata = *ptr + (i * sizeof(struct metadata));
+        if (i < 130){
+            metadata->next = *ptr + ((i + 1) * sizeof(struct metadata));
+            metadata->block_pointer = NULL;
+            metadata->block_size = 0;
         }
     }
 
-    my_log("metadata pool and chained list setup");
+    // my_log("metadata pool and chained list setup");
     return metadata_pool;
 }
 
@@ -82,15 +84,15 @@ void    my_log(const char *fmt, ...)
     write(2, buf, strlen(buf));
 }
 
-void        *my_malloc(size_t size)
+void    *my_malloc(size_t size)
 {  
     if (size == 0){
         my_log("You need to specify a size");
         return 0;
     }
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
-    int **ptr; 
-    ptr = &data_pool;
+    void *ptr; 
+    ptr = data_pool;
 
     //search a descriptor block available
     struct metadata *metadata_available = metadata_pool;
@@ -98,7 +100,7 @@ void        *my_malloc(size_t size)
         if (metadata_available->block_pointer == NULL){
             metadata_available->block_pointer = ptr;
             metadata_available->block_size = size;
-            break;
+            return ptr;
         } else {
             ptr += metadata_available->block_size;
             metadata_available = metadata_available->next;

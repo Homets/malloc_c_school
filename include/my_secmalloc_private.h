@@ -11,7 +11,7 @@ extern void *data_pool;
 
 struct      metadata
 {
-    int                 *block_pointer;
+    void                 *block_pointer;
     unsigned long       block_size;
     struct metadata     *next;
 

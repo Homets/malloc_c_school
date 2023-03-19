@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "my_secmalloc_private.h": "c"
+        "my_secmalloc_private.h": "c",
+        "stdio.h": "c"
     }
 }
