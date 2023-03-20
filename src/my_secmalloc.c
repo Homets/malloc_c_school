@@ -91,7 +91,7 @@ void    *my_malloc(size_t size)
         return 0;
     }
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
-    void *ptr; 
+    char *ptr; 
     ptr = data_pool;
 
     //search a descriptor block available
@@ -99,7 +99,11 @@ void    *my_malloc(size_t size)
     while (metadata_available->next != NULL){
         if (metadata_available->block_pointer == NULL){
             metadata_available->block_pointer = ptr;
-            metadata_available->block_size = size;
+            metadata_available->block_size = size + 8; //8 is canary size
+            //write data on canary
+            for (int i = 0; i < 8;i++){
+                ptr[size + i] = 'X';
+            }
             return ptr;
         } else {
             ptr += metadata_available->block_size;
