@@ -80,7 +80,6 @@ Test(data_pool, check_canary_well_written)
     my_init_metadata_pool();
     my_init_data_pool();
     size_t sz_data = 8;
-    // size_t size = sz_data + 8;  
     char *ptr = my_malloc(sz_data);
 
     for (int i = 0; i < 8;i++)

@@ -7,6 +7,7 @@
 
 extern void *metadata_pool;
 extern void *data_pool;
+extern unsigned long metadata_size;
 
 
 struct      metadata

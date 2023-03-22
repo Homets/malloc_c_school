@@ -11,23 +11,23 @@
 #include "my_secmalloc.h"
 #include "my_secmalloc_private.h"
 
-//global pool
+//global variable
 void    *metadata_pool = NULL;
 void    *data_pool = NULL;
-
+unsigned long metadata_size = 0;
 
 void    *my_init_metadata_pool()
 {
-    metadata_pool = mmap(NULL, 3144, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    metadata_size = 3144;
+    metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     
     void **ptr;
     ptr = &metadata_pool;
-
     //init all metadata block in a linked list with all alltribute setup to null except next
     for (int i = 0; i < 131;i++)
     {
         struct metadata *metadata = *ptr + (i * sizeof(struct metadata));
-        if (i < 130){
+        if (i < metadata_size / sizeof(struct metadata)){
             metadata->next = *ptr + ((i + 1) * sizeof(struct metadata));
             metadata->block_pointer = NULL;
             metadata->block_size = 0;
@@ -94,9 +94,12 @@ void    *my_malloc(size_t size)
     char *ptr; 
     ptr = data_pool;
 
+    unsigned long metadata_pool_sz = metadata_size; //size will be used for mremap if all metadata block are already used
+
     //search a descriptor block available
     struct metadata *metadata_available = metadata_pool;
     while (metadata_available->next != NULL){
+        metadata_pool_sz += sizeof(struct metadata);
         if (metadata_available->block_pointer == NULL){
             metadata_available->block_pointer = ptr;
             metadata_available->block_size = size + 8; //8 is canary size
@@ -110,7 +113,8 @@ void    *my_malloc(size_t size)
             metadata_available = metadata_available->next;
         }
     }
-    return NULL;
+    void * new_metadata_pool;
+    new_metadata_pool = mremap(metadata_pool,metadata_pool_sz, metadata_pool_sz + sizeof(struct metadata), MREMAP_DONTUNMAP);
 }
 
 void    my_free(void *ptr)
