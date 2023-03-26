@@ -7,13 +7,14 @@
 
 extern void *metadata_pool;
 extern void *data_pool;
-extern unsigned long metadata_size;
+extern size_t metadata_size;
+extern size_t data_size;
 
 
 struct      metadata
 {
-    void                 *block_pointer;
-    unsigned long       block_size;
+    void                *block_pointer;
+    size_t              block_size;
     struct metadata     *next;
 
 };

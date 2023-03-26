@@ -1,6 +1,6 @@
+#define _GNU_SOURCE
 #include <criterion/criterion.h>
 #include <criterion/redirect.h>
-#define _GNU_SOURCE
 #include <sys/mman.h>
 #include <stdio.h>
 #include <string.h>
@@ -93,4 +93,37 @@ Test(data_pool, check_canary_well_written)
     cr_assert(clean_data_pool() == 0);
 }
 
+Test(data_pool, mremap_is_correct)
+{
+    char *ptr = mmap(NULL, 15, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON , -1, 0);
+    for (int i = 0; i < 15;i++){
+        ptr[i] = 'X';
+    }
+    for (int i = 0; i < 15; i++){
+        cr_assert(ptr[i] == 'X');
+    }
+    //check if data is not overwritten or pointer adress change
+    ptr= mremap(ptr,15,18,0);
+    if (ptr == MAP_FAILED)
+    {
+        my_log("error mremap\n");
+    }
+    for (int i = 0; i < 15; i++){
+        cr_assert(ptr[i] == 'X');
+    }
+    int res = munmap(ptr,18);
+    printf("%d", res);
+}
+
+Test(data_pool, test_reallocation_of_data_pool)
+{
+    my_init_metadata_pool();
+    my_init_data_pool();
+    void *ptr;
+    ptr = my_malloc(314405);
+    my_log("\n\nptr datadata => %p\n\n", ptr);
+
+    cr_assert(clean_metadata_pool() == 0);
+    cr_assert(clean_data_pool() == 0);
+}
 

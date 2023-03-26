@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "my_secmalloc_private.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "alloca.h": "c",
+        "criterion.h": "c",
+        "redirect.h": "c",
+        "my_secmalloc.h": "c"
     }
 }

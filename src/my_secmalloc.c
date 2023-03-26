@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <alloca.h>
+#include <stdlib.h>
 
 #include "my_secmalloc.h"
 #include "my_secmalloc_private.h"
@@ -14,7 +15,9 @@
 //global variable
 void    *metadata_pool = NULL;
 void    *data_pool = NULL;
-unsigned long metadata_size = 0;
+size_t metadata_size = 0;
+size_t data_size = 0;
+
 
 void    *my_init_metadata_pool()
 {
@@ -24,7 +27,7 @@ void    *my_init_metadata_pool()
     void **ptr;
     ptr = &metadata_pool;
     //init all metadata block in a linked list with all alltribute setup to null except next
-    for (int i = 0; i < 131;i++)
+    for (unsigned long i = 0; i < 131;i++)
     {
         struct metadata *metadata = *ptr + (i * sizeof(struct metadata));
         if (i < metadata_size / sizeof(struct metadata)){
@@ -40,15 +43,15 @@ void    *my_init_metadata_pool()
 
 void    *my_init_data_pool()
 {
-    data_pool = mmap(NULL,314400, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    data_size = 314400;
+    data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     return data_pool;
 
 }
 
-
 int    clean_metadata_pool()
 {
-        int res = munmap(metadata_pool,3144);
+        int res = munmap(metadata_pool,metadata_size);
         if (res == 0)
         {   
             my_log("munmap success\n");
@@ -59,7 +62,7 @@ int    clean_metadata_pool()
 
 int     clean_data_pool()
 {
-    int res = munmap(data_pool,314400);
+    int res = munmap(data_pool,data_size);
     if (res == 0)
     {
         my_log("munmap success\n");
@@ -84,6 +87,28 @@ void    my_log(const char *fmt, ...)
     write(2, buf, strlen(buf));
 }
 
+
+void     check_data_pool_size(size_t size)
+{
+    struct metadata *ptr = metadata_pool;
+    size_t size_copy = data_size;
+    size_t increment_size = 0;
+    //check if data pool size is enough 
+    while (ptr->next != NULL){
+        increment_size += ptr->block_size;
+        ptr = ptr->next;
+    }
+    if (increment_size + size > size_copy){
+        my_log("on augmente la taille\n");
+        data_pool = mremap(data_pool, size_copy, increment_size+ size, 0);
+        if (data_pool == MAP_FAILED){
+            my_log("error reallocate memory");
+        }
+        data_size = data_size + size;
+    }
+}
+
+
 void    *my_malloc(size_t size)
 {  
     if (size == 0){
@@ -93,9 +118,10 @@ void    *my_malloc(size_t size)
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
     char *ptr; 
     ptr = data_pool;
-
     unsigned long metadata_pool_sz = metadata_size; //size will be used for mremap if all metadata block are already used
 
+    //check data length
+    check_data_pool_size(size);
     //search a descriptor block available
     struct metadata *metadata_available = metadata_pool;
     while (metadata_available->next != NULL){
@@ -103,18 +129,26 @@ void    *my_malloc(size_t size)
         if (metadata_available->block_pointer == NULL){
             metadata_available->block_pointer = ptr;
             metadata_available->block_size = size + 8; //8 is canary size
-            //write data on canary
+            //write data canary
             for (int i = 0; i < 8;i++){
                 ptr[size + i] = 'X';
             }
             return ptr;
         } else {
             ptr += metadata_available->block_size;
+            if (metadata_available-> next == NULL){
+                metadata_available->next = metadata_available + sizeof(struct metadata);
+                metadata_available->next->block_size = size;
+                metadata_available->next->block_pointer = ptr;
+            }
             metadata_available = metadata_available->next;
         }
     }
-    void * new_metadata_pool;
-    new_metadata_pool = mremap(metadata_pool,metadata_pool_sz, metadata_pool_sz + sizeof(struct metadata), MREMAP_DONTUNMAP);
+    metadata_pool = mremap(metadata_pool,metadata_pool_sz, metadata_pool_sz + sizeof(struct metadata), 0);
+    metadata_size += sizeof(struct metadata);
+    //create new descriptor and the allocation
+    
+    return NULL;
 }
 
 void    my_free(void *ptr)
