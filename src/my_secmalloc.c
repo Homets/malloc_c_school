@@ -136,19 +136,21 @@ void    *my_malloc(size_t size)
             return ptr;
         } else {
             ptr += metadata_available->block_size;
-            if (metadata_available-> next == NULL){
-                metadata_available->next = metadata_available + sizeof(struct metadata);
-                metadata_available->next->block_size = size;
-                metadata_available->next->block_pointer = ptr;
-            }
             metadata_available = metadata_available->next;
         }
     }
+    //reallocate the metadata pool adding and completing one descriptor and return the data pool pointer
     metadata_pool = mremap(metadata_pool,metadata_pool_sz, metadata_pool_sz + sizeof(struct metadata), 0);
     metadata_size += sizeof(struct metadata);
-    //create new descriptor and the allocation
+    if (metadata_available->next == NULL){
+        ptr += metadata_available->block_size;
+        metadata_available->next = metadata_available + sizeof(struct metadata);
+        metadata_available->next->block_size = size;
+        metadata_available->next->block_pointer = ptr;
+        return metadata_available->next->block_pointer;
+    }
     
-    return NULL;
+    return 0;
 }
 
 void    my_free(void *ptr)

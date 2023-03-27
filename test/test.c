@@ -127,3 +127,36 @@ Test(data_pool, test_reallocation_of_data_pool)
     cr_assert(clean_data_pool() == 0);
 }
 
+Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
+{
+    metadata_size = 24;
+    metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+
+    void **ptr;
+    ptr = &metadata_pool;
+    //init all metadata block in a linked list with all alltribute setup to null except next
+    for (unsigned long i = 0; i < 131;i++)
+    {
+        struct metadata *metadata = *ptr + (i * sizeof(struct metadata));
+        if (i < metadata_size / sizeof(struct metadata)){
+            metadata->next = NULL;
+            metadata->block_pointer = NULL;
+            metadata->block_size = 0;
+        }
+    }
+    struct metadata *metadata_available = metadata_pool;
+    if (metadata_available->next == NULL)
+    {
+        metadata_pool = mremap(metadata_pool,metadata_size, metadata_size + sizeof(struct metadata), 0);
+        metadata_size += sizeof(struct metadata);
+    }
+    struct metadata *metadata = *ptr;
+    if (metadata->next == NULL)
+    {
+        metadata->next = metadata_pool + sizeof(struct metadata);
+        metadata->next->next = NULL;
+        metadata->next->block_size = 1000;
+        cr_assert(metadata->next->block_size == 1000);
+    }
+    cr_assert(clean_metadata_pool() == 0);
+}
