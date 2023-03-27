@@ -5,12 +5,16 @@
  * Ici vous pourrez faire toutes les déclarations de variables/fonctions pour votre usage interne
  * */
 
+//error
+#define ERROR_TO_ALLOCATE 5
+#define ERROR_TO_CLEAN_POOL 6
+//variable global
 extern void *metadata_pool;
 extern void *data_pool;
 extern size_t metadata_size;
 extern size_t data_size;
 
-
+//struct
 struct      metadata
 {
     void                *block_pointer;
@@ -19,7 +23,7 @@ struct      metadata
 
 };
 
-
+//func
 void        *my_init_metadata_pool();
 
 void        *my_init_data_pool();
