@@ -6,8 +6,11 @@
  * */
 
 //error
-#define ERROR_TO_ALLOCATE 5
-#define ERROR_TO_CLEAN_POOL 6
+#define ERROR_CANARY_OVERWRITTEN "ERROR CANARY OVERWRITTED"
+#define ERROR_FREE_NO_POINTER "ERROR NO POINTER OF DATA EXIST"
+#define ERROR_TO_ALLOCATE NULL
+#define ERROR_TO_CLEAN_POOL -1
+
 //variable global
 extern void *metadata_pool;
 extern void *data_pool;

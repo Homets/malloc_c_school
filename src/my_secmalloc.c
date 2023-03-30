@@ -57,7 +57,7 @@ int    clean_metadata_pool()
             my_log("munmap success\n");
             return 0;
         }
-        return -1;
+        return ERROR_TO_CLEAN_POOL;
 }
 
 int     clean_data_pool()
@@ -68,7 +68,7 @@ int     clean_data_pool()
         my_log("munmap success\n");
         return 0;
     }
-    return -1;
+    return ERROR_TO_CLEAN_POOL;
 
 }
 
@@ -113,7 +113,7 @@ void    *my_malloc(size_t size)
 {  
     if (size == 0){
         my_log("You need to specify a size");
-        return 0;
+        return ERROR_TO_ALLOCATE;
     }
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
     char *ptr; 
@@ -150,12 +150,41 @@ void    *my_malloc(size_t size)
         return metadata_available->next->block_pointer;
     }
     
-    return 0;
+    return ERROR_TO_ALLOCATE;
 }
 
 void    my_free(void *ptr)
 {
+    //take pointer
+    //loop in all metadata descriptor and check block_pointer to check if pointer passed in arguement is equal
+    struct metadata *metadata = metadata_pool;
+    while (metadata->next != NULL)
+    {
+            if (ptr == metadata->block_pointer){
+                //check if canary is overwritten by user
+                char *ptr_canary = metadata->block_pointer + 8;
+                for (int i = 0; i < 8;i++){
+                    if (ptr_canary[i] != 'X'){
+                        my_log("%s\n", ERROR_CANARY_OVERWRITTEN);
+                        exit(0);
+                    }
+                }
+
+                //reset all char to 'O'
+                char *ptr_erase = metadata->block_pointer;
+                for (int j = 0; j < metadata->block_size; j++){
+                    ptr_erase[j] = '0';
+                    ptr_erase++;
+                }
+                metadata->block_pointer = NULL;
+                metadata_size = 0;
+
+            }
+    }
+    //recreer un
     (void) ptr;
+    my_log("%s\n" ERROR_FREE_NO_POINTER);
+
 }
 
 void    *my_calloc(size_t nmemb, size_t size)

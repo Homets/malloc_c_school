@@ -160,3 +160,5 @@ Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
     }
     cr_assert(clean_metadata_pool() == 0);
 }
+
+
