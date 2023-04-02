@@ -161,4 +161,27 @@ Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
     cr_assert(clean_metadata_pool() == 0);
 }
 
+Test(data_free, test_free)
+{
+    my_init_metadata_pool();
+    my_init_data_pool();
+    size_t sz_data = 8;
+    char *ptr = my_malloc(sz_data);
+    struct metadata *first_meta = metadata_pool;
+    my_log("%p\n", first_meta->block_pointer);
+    my_log("%ld", first_meta->block_size);
+    cr_assert(first_meta->block_pointer = ptr);
+    cr_assert(first_meta->block_size = sz_data);
 
+    my_free(ptr);
+    struct metadata *second_meta = metadata_pool;
+    my_log("%p", second_meta->block_pointer);
+    my_log("%ld", second_meta->block_size);
+    cr_assert(second_meta->block_pointer == NULL);
+    cr_assert(second_meta->block_size == 0);
+
+
+
+    cr_assert(clean_metadata_pool() == 0);
+    cr_assert(clean_data_pool() == 0);
+}

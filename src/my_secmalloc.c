@@ -162,6 +162,8 @@ void    my_free(void *ptr)
     {
             if (ptr == metadata->block_pointer){
                 //check if canary is overwritten by user
+                my_log("\naaaaa\n");
+                my_log("size => %ld", metadata->block_size);
                 char *ptr_canary = metadata->block_pointer + 8;
                 for (int i = 0; i < 8;i++){
                     if (ptr_canary[i] != 'X'){
@@ -171,19 +173,21 @@ void    my_free(void *ptr)
                 }
 
                 //reset all char to 'O'
+                my_log("\nbbbbb\n");
                 char *ptr_erase = metadata->block_pointer;
-                for (int j = 0; j < metadata->block_size; j++){
+                for (size_t j = 0; j < metadata->block_size; j++){
                     ptr_erase[j] = '0';
                     ptr_erase++;
                 }
                 metadata->block_pointer = NULL;
-                metadata_size = 0;
+                metadata->block_size = 0;
+                break;
 
             }
     }
     //recreer un
     (void) ptr;
-    my_log("%s\n" ERROR_FREE_NO_POINTER);
+    // my_log("%s\n" ERROR_FREE_NO_POINTER);
 
 }
 
