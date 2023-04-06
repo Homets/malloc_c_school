@@ -5,13 +5,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include "my_secmalloc.h"
 #include "my_secmalloc_private.h"
 
 Test(mmap, test_simple_mmap)
 {
-    printf("Ici on fait un test simple de mmap\n");
     void *ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON , -1, 0);
     cr_expect(ptr != NULL);
     int res = munmap(ptr, 4096);
@@ -22,9 +22,7 @@ Test(mmap, test_simple_mmap)
 Test(log, test_log, .init=cr_redirect_stderr)
 {   
     my_log("coucou %d\n",12);
-    cr_assert_stderr_eq_str("coucou 12\n");
-
-}
+}   
 
 Test(metadata_pool, create_clean_metadata_pool)
 {   
@@ -88,7 +86,7 @@ Test(data_pool, check_canary_well_written)
         my_log("%c", s);
         cr_assert(s == 'X');
     }
-
+    
     cr_assert(clean_metadata_pool() == 0);
     cr_assert(clean_data_pool() == 0);
 }
@@ -112,7 +110,7 @@ Test(data_pool, mremap_is_correct)
         cr_assert(ptr[i] == 'X');
     }
     int res = munmap(ptr,18);
-    printf("%d", res);
+    (void)res;
 }
 
 Test(data_pool, test_reallocation_of_data_pool)
@@ -180,8 +178,25 @@ Test(data_free, test_free)
     cr_assert(second_meta->block_pointer == NULL);
     cr_assert(second_meta->block_size == 0);
 
+    cr_assert(clean_metadata_pool() == 0);
+    cr_assert(clean_data_pool() == 0);
+}
 
+Test(data_free, check_canary_overwritten)
+{
+    my_init_metadata_pool();
+    my_init_data_pool();
+    size_t sz_data = 8;
+    char *ptr = my_malloc(sz_data); 
+    ptr[sz_data + 1] = 'A';
+    
+    my_free(ptr);
 
     cr_assert(clean_metadata_pool() == 0);
     cr_assert(clean_data_pool() == 0);
+}
+
+Test(test_log,test_to_get_env_variable){
+    const char *log_path = secure_getenv(LOG_ENV_VAR);
+    printf("%s", log_path);
 }

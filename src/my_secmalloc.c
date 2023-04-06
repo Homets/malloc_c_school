@@ -29,7 +29,7 @@ void    *my_init_metadata_pool()
     //init all metadata block in a linked list with all alltribute setup to null except next
     for (unsigned long i = 0; i < 131;i++)
     {
-        struct metadata *metadata = *ptr + (i * sizeof(struct metadata));
+        struct metadata *metadata = *ptr + (i * sizeof(struct metadata));   
         if (i < metadata_size / sizeof(struct metadata)){
             metadata->next = *ptr + ((i + 1) * sizeof(struct metadata));
             metadata->block_pointer = NULL;
@@ -50,7 +50,7 @@ void    *my_init_data_pool()
 }
 
 int    clean_metadata_pool()
-{
+{   
         int res = munmap(metadata_pool,metadata_size);
         if (res == 0)
         {   
@@ -85,8 +85,37 @@ void    my_log(const char *fmt, ...)
     vsnprintf(buf, sz + 1,fmt,ap);
     va_end(ap);
     write(2, buf, strlen(buf));
+    
 }
 
+void    write_log(const char *fmt,...){
+
+    const char *log_file_path = secure_getenv(LOG_ENV_VAR); 
+    va_list ap;
+    va_start(ap,fmt);
+    size_t sz = vsnprintf(NULL,0,fmt,ap);
+    va_end(ap);
+    char *buf = alloca(sz + 2);
+    va_start(ap,fmt);
+    vsnprintf(buf, sz + 1,fmt,ap);
+    va_end(ap);
+
+    //write log file
+    int fd = open(log_file_path, O_RDWR | O_CREAT | O_APPEND);
+    if (fd == -1){
+        my_log(ERROR_WRITING_LOG);
+    }
+    ssize_t write_fd = write(fd, buf, sizeof(buf));
+    if (write_fd == -1){
+        my_log(ERROR_WRITING_LOG);
+    }
+
+    if (fd != -1){
+        fsync(fd);
+        close(fd);
+    }
+
+}
 
 void     check_data_pool_size(size_t size)
 {
@@ -128,9 +157,9 @@ void    *my_malloc(size_t size)
         metadata_pool_sz += sizeof(struct metadata);
         if (metadata_available->block_pointer == NULL){
             metadata_available->block_pointer = ptr;
-            metadata_available->block_size = size + 8; //8 is canary size
+            metadata_available->block_size = size + CANARY_SZ;
             //write data canary
-            for (int i = 0; i < 8;i++){
+            for (int i = 0; i < CANARY_SZ;i++){
                 ptr[size + i] = 'X';
             }
             return ptr;
@@ -162,10 +191,8 @@ void    my_free(void *ptr)
     {
             if (ptr == metadata->block_pointer){
                 //check if canary is overwritten by user
-                my_log("\naaaaa\n");
-                my_log("size => %ld", metadata->block_size);
-                char *ptr_canary = metadata->block_pointer + 8;
-                for (int i = 0; i < 8;i++){
+                char *ptr_canary = metadata->block_pointer + metadata->block_size - CANARY_SZ;
+                for (int i = 0; i < CANARY_SZ;i++){
                     if (ptr_canary[i] != 'X'){
                         my_log("%s\n", ERROR_CANARY_OVERWRITTEN);
                         exit(0);
@@ -173,23 +200,28 @@ void    my_free(void *ptr)
                 }
 
                 //reset all char to 'O'
-                my_log("\nbbbbb\n");
                 char *ptr_erase = metadata->block_pointer;
-                for (size_t j = 0; j < metadata->block_size; j++){
+                for (size_t j = 0; j < metadata->block_size + CANARY_SZ; j++){
                     ptr_erase[j] = '0';
                     ptr_erase++;
                 }
                 metadata->block_pointer = NULL;
-                metadata->block_size = 0;
+                metadata->block_size = 0;   
                 break;
 
             }
     }
     //recreer un
-    (void) ptr;
     // my_log("%s\n" ERROR_FREE_NO_POINTER);
 
 }
+
+//LOG FUNCTION
+//FOR MALLOC
+//timestamp <info | error> MALLOC size pointer <error> 
+//FOR FREE
+//timestamp <info | error> FREE <size desallocated if no error> pointer <error>
+
 
 void    *my_calloc(size_t nmemb, size_t size)
 {
