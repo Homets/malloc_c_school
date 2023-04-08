@@ -1,11 +1,15 @@
 #define _GNU_SOURCE
 #include <criterion/criterion.h>
 #include <criterion/redirect.h>
-#include <sys/mman.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 #include "my_secmalloc.h"
 #include "my_secmalloc_private.h"
@@ -191,7 +195,22 @@ Test(data_free, check_canary_overwritten)
     ptr[sz_data + 1] = 'A';
     
     my_free(ptr);
+    // my_free(ptr);
+    cr_assert(clean_metadata_pool() == 0);
+    cr_assert(clean_data_pool() == 0);
+}
 
+
+Test(test_calloc, check_calloc)
+{
+    my_init_metadata_pool();
+    my_init_data_pool();
+    size_t n = 4;
+    char *ptr = my_calloc(n, sizeof(int)); 
+    for (int i = 0; i < 15; i++){
+        cr_assert(ptr[i] == '0');
+    };
+    my_free(ptr);
     cr_assert(clean_metadata_pool() == 0);
     cr_assert(clean_data_pool() == 0);
 }
@@ -199,4 +218,13 @@ Test(data_free, check_canary_overwritten)
 Test(test_log,test_to_get_env_variable){
     const char *log_path = secure_getenv(LOG_ENV_VAR);
     printf("%s", log_path);
+}
+
+Test(test_log,test_to_write_log){
+    write_log("test write_log");
+}
+
+Test(test_log,test_to_get_time){
+    char *str = get_time();
+    my_log("%s", str);
 }

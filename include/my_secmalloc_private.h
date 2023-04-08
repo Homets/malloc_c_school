@@ -8,9 +8,10 @@
 //error
 #define ERROR_CANARY_OVERWRITTEN "ERROR CANARY OVERWRITTEN"
 #define ERROR_FREE_NO_POINTER "ERROR NO POINTER OF DATA EXIST"
+#define ERROR_REALLOCATION "ERROR REALLOCATE MEMORY"
 #define ERROR_TO_ALLOCATE NULL
 #define ERROR_TO_CLEAN_POOL -1
-#define ERROR_WRITING_LOG "ERROR FOR WRITING LOG"
+#define ERROR_WRITING_LOG "ERROR FOR WRITING LOG\n"
 
 
 //constant
@@ -40,6 +41,8 @@ void        *my_init_data_pool();
 int         clean_metadata_pool();
 
 int         clean_data_pool();
+
+char  *get_time();
 
 void        my_log(const char *fmt,...);
 
