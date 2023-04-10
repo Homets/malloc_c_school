@@ -38,9 +38,9 @@ void        *my_init_metadata_pool();
 
 void        *my_init_data_pool();
 
-int         clean_metadata_pool();
+void         clean_metadata_pool();
 
-int         clean_data_pool();
+void         clean_data_pool();
 
 char  *get_time();
 

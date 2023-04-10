@@ -29,7 +29,6 @@ void    *my_init_metadata_pool()
 {
     metadata_size = 3144;
     metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-    
     void **ptr;
     ptr = &metadata_pool;
     //init all metadata block in a linked list with all alltribute setup to null except next
@@ -55,24 +54,14 @@ void    *my_init_data_pool()
 
 }
 
-int    clean_metadata_pool()
+void    clean_metadata_pool()
 {   
-        int res = munmap(metadata_pool,metadata_size);
-        if (res == 0)
-        {   
-            return 0;
-        }
-        return ERROR_TO_CLEAN_POOL;
+    munmap(metadata_pool,metadata_size);
 }
 
-int     clean_data_pool()
+void     clean_data_pool()
 {
-    int res = munmap(data_pool,data_size);
-    if (res == 0)
-    {
-        return 0;
-    }
-    return ERROR_TO_CLEAN_POOL;
+    munmap(data_pool,data_size);
 }
 
 
@@ -155,7 +144,7 @@ void     check_data_pool_size(size_t size)
 
 
 void    *my_malloc(size_t size)
-{  
+{   
     if (size == 0){
         char *time = get_time();
         write_log("%s ERROR MALLOC %d size equal to 0\n---------------------------------------\n",time,size);
@@ -165,6 +154,8 @@ void    *my_malloc(size_t size)
         my_init_data_pool();
         my_init_metadata_pool();
         pool_is_create = 1;
+        atexit(clean_metadata_pool);
+        atexit(clean_data_pool);
     }
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
     char *ptr; 
@@ -216,12 +207,13 @@ void    *my_malloc(size_t size)
 }
 
 void    my_free(void *ptr)
-{
+{   
     //take pointer
     //loop in all metadata descriptor and check block_pointer to check if pointer passed in arguement is equal
     struct metadata *metadata = metadata_pool;
     while (metadata->next != NULL)
     {
+            my_log("salut");
             if (ptr == metadata->block_pointer){
                 //check if canary is overwritten by user
                 char *ptr_canary = metadata->block_pointer + metadata->block_size - CANARY_SZ;
