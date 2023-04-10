@@ -63,8 +63,8 @@ Test(metadata_pool, test_all_metadata_pool)
 
 Test(metadata_pool, check_metadatablock_edited)
 {
-    my_init_metadata_pool();
-    my_init_data_pool();
+    // my_init_metadata_pool();
+    // my_init_data_pool();
     my_log("ptr de data %p\n", data_pool);
     void **ptr;
     void **ptr1;
@@ -79,8 +79,8 @@ Test(metadata_pool, check_metadatablock_edited)
 
 Test(data_pool, check_canary_well_written)
 {
-    my_init_metadata_pool();
-    my_init_data_pool();
+    // my_init_metadata_pool();
+    // my_init_data_pool();
     size_t sz_data = 8;
     char *ptr = my_malloc(sz_data);
 
@@ -119,8 +119,8 @@ Test(data_pool, mremap_is_correct)
 
 Test(data_pool, test_reallocation_of_data_pool)
 {
-    my_init_metadata_pool();
-    my_init_data_pool();
+    // my_init_metadata_pool();
+    // my_init_data_pool();
     void *ptr;
     ptr = my_malloc(314405);
     my_log("\n\nptr datadata => %p\n\n", ptr);
@@ -165,8 +165,8 @@ Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
 
 Test(data_free, test_free)
 {
-    my_init_metadata_pool();
-    my_init_data_pool();
+    // my_init_metadata_pool();
+    // my_init_data_pool();
     size_t sz_data = 8;
     char *ptr = my_malloc(sz_data);
     struct metadata *first_meta = metadata_pool;
@@ -188,8 +188,8 @@ Test(data_free, test_free)
 
 Test(data_free, check_canary_overwritten)
 {
-    my_init_metadata_pool();
-    my_init_data_pool();
+    // my_init_metadata_pool();
+    // my_init_data_pool();
     size_t sz_data = 8;
     char *ptr = my_malloc(sz_data); 
     ptr[sz_data + 1] = 'A';
@@ -203,8 +203,8 @@ Test(data_free, check_canary_overwritten)
 
 Test(test_calloc, check_calloc)
 {
-    my_init_metadata_pool();
-    my_init_data_pool();
+    // my_init_metadata_pool();
+    // my_init_data_pool();
     size_t n = 4;
     char *ptr = my_calloc(n, sizeof(int)); 
     for (int i = 0; i < 15; i++){
@@ -227,4 +227,4 @@ Test(test_log,test_to_write_log){
 Test(test_log,test_to_get_time){
     char *str = get_time();
     my_log("%s", str);
-}
+}   

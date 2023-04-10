@@ -23,7 +23,7 @@ extern void *metadata_pool;
 extern void *data_pool;
 extern size_t metadata_size;
 extern size_t data_size;
-
+extern int pool_is_create;
 //struct
 struct      metadata
 {

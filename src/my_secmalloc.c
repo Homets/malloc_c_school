@@ -20,8 +20,9 @@
 //global variable
 void    *metadata_pool = NULL;
 void    *data_pool = NULL;
-size_t metadata_size = 0;
-size_t data_size = 0;
+size_t  metadata_size = 0;
+size_t  data_size = 0;
+int     pool_is_create = 0;
 
 
 void    *my_init_metadata_pool()
@@ -102,6 +103,8 @@ void    my_log(const char *fmt, ...)
 //timestamp <info | error> MALLOC size pointer <error> 
 //FOR FREE
 //timestamp <info | error> FREE <size desallocated if no error> pointer <error>
+//FOR CALLOC
+//timestamp <info | error> CALLOC <size> <ptr | error>
 void    write_log(const char *fmt,...){
 
     const char *log_file_path = secure_getenv(LOG_ENV_VAR); 
@@ -157,6 +160,11 @@ void    *my_malloc(size_t size)
         char *time = get_time();
         write_log("%s ERROR MALLOC %d size equal to 0\n---------------------------------------\n",time,size);
         return ERROR_TO_ALLOCATE;
+    }
+    if (pool_is_create == 0){
+        my_init_data_pool();
+        my_init_metadata_pool();
+        pool_is_create = 1;
     }
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
     char *ptr; 
@@ -244,13 +252,17 @@ void    my_free(void *ptr)
 
 }
 
-
 void    *my_calloc(size_t nmemb , size_t size)
 {
-    if (nmemb == 0 || size == 0){
+    if ((nmemb == 0 || size == 0) || (nmemb == 0 && size == 0)){
         char *time = get_time();
         write_log("%s ERROR CALLOC %d nmemb %d size INVALID ARGUMENT\n---------------------------------------\n",time,size, nmemb);
         return ERROR_TO_ALLOCATE;
+    }
+    if (pool_is_create == 0){
+        my_init_data_pool();
+        my_init_metadata_pool();
+        pool_is_create = 1;
     }
     size_t total_sz = nmemb * size;
     my_log("size => %d\n",total_sz);
@@ -258,7 +270,7 @@ void    *my_calloc(size_t nmemb , size_t size)
     my_log("passe le malloc\n");
     if (ptr == NULL){
         char *time = get_time();
-        write_log("%s INFO CALLOC %d nmemb %d size\n---------------------------------------\n",time,size, nmemb);
+        write_log("%s ERROR CALLOC %d nmemb %d size\n---------------------------------------\n",time,size, nmemb);
         return ERROR_TO_ALLOCATE;
     }
     //write all byte allocate with 0
@@ -266,7 +278,6 @@ void    *my_calloc(size_t nmemb , size_t size)
     for (size_t i = 0;i < total_sz;i++){
         ptr_write[i] = '0';
     }
-    my_log("écrit\n");
 
     return ptr;
 }
