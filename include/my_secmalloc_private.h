@@ -38,11 +38,11 @@ void        *my_init_metadata_pool();
 
 void        *my_init_data_pool();
 
-void         clean_metadata_pool();
+void        clean_metadata_pool();
 
-void         clean_data_pool();
+void        clean_data_pool();
 
-char  *get_time();
+time_t      get_time();
 
 void        my_log(const char *fmt,...);
 

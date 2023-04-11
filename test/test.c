@@ -137,7 +137,7 @@ Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
     void **ptr;
     ptr = &metadata_pool;
     //init all metadata block in a linked list with all alltribute setup to null except next
-    for (unsigned long i = 0; i < 131;i++)
+    for (unsigned long i = 0; i < 4096;i++)
     {
         struct metadata *metadata = *ptr + (i * sizeof(struct metadata));
         if (i < metadata_size / sizeof(struct metadata)){
@@ -224,7 +224,7 @@ Test(test_log,test_to_write_log){
     write_log("test write_log");
 }
 
-Test(test_log,test_to_get_time){
-    char *str = get_time();
-    my_log("%s", str);
-}   
+// Test(test_log,test_to_get_time){
+//     char *str = get_time();
+//     my_log("%s", str);
+// }   

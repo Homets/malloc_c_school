@@ -56,6 +56,7 @@ void    *my_init_data_pool()
 
 void    clean_metadata_pool()
 {   
+    my_log("clean");
     munmap(metadata_pool,metadata_size);
 }
 
@@ -65,12 +66,10 @@ void     clean_data_pool()
 }
 
 
-char    *get_time(){
-    time_t t;
-    time(&t);
-    char *actual_time = ctime(&t);
-    // my_log("%s", actual_time);
-    return actual_time;
+time_t    get_time(){
+    time_t t = time(&t);
+
+    return t;
 }
 //Log without heap allocation
 void    my_log(const char *fmt, ...)
@@ -146,16 +145,16 @@ void     check_data_pool_size(size_t size)
 void    *my_malloc(size_t size)
 {   
     if (size == 0){
-        char *time = get_time();
-        write_log("%s ERROR MALLOC %d size equal to 0\n---------------------------------------\n",time,size);
+        time_t time = get_time();
+        write_log("%lu ERROR MALLOC %d size equal to 0\n---------------------------------------\n",time,size);
         return ERROR_TO_ALLOCATE;
     }
     if (pool_is_create == 0){
         my_init_data_pool();
         my_init_metadata_pool();
         pool_is_create = 1;
-        atexit(clean_metadata_pool);
-        atexit(clean_data_pool);
+        // atexit(clean_metadata_pool);
+        // atexit(clean_data_pool);
     }
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
     char *ptr; 
@@ -169,8 +168,7 @@ void    *my_malloc(size_t size)
     while (metadata_available->next != NULL){
         metadata_pool_sz += sizeof(struct metadata);
         //if a metadata block is null and the block_size is greater than size param 
-        if (metadata_available->block_pointer == NULL && (metadata_available->block_size == 0 || metadata_available->block_size <= size - CANARY_SZ)){
-
+        if (metadata_available->block_pointer == NULL &&  metadata_available->block_size <= size - CANARY_SZ){
             metadata_available->block_pointer = ptr;
             metadata_available->block_size = size + CANARY_SZ;
             //write data canary
@@ -178,8 +176,8 @@ void    *my_malloc(size_t size)
                 ptr[size + i] = 'X';
             }
 
-            char *time = get_time();
-            write_log("%s INFO MALLOC %d %p\n---------------------------------------\n",time,size, ptr);
+            time_t time = get_time();
+            write_log("%lu INFO MALLOC %d %p\n---------------------------------------\n",time,size, ptr);
             return ptr;
         } else {
             ptr += metadata_available->block_size;
@@ -195,13 +193,14 @@ void    *my_malloc(size_t size)
         metadata_available->next = metadata_available + sizeof(struct metadata);
         metadata_available->next->block_size = size;
         metadata_available->next->block_pointer = ptr;
-        char *time = get_time();
-        write_log("%s INFO MALLOC %d %p\n---------------------------------------\n",time,size, ptr);
+        time_t time = get_time();
+        write_log("%lu INFO MALLOC %d %p\n---------------------------------------\n",time,size, ptr);
         return ptr;
     }
     
-    char *time = get_time();
-    write_log("%s ERROR MALLOC %d ERROR TO ALLOCATE\n---------------------------------------\n",time,size);
+    time_t time = get_time();
+    write_log("%lu ERROR MALLOC %d ERROR TO ALLOCATE\n---------------------------------------\n",time,size);
+
     return ERROR_TO_ALLOCATE;
     
 }
@@ -210,45 +209,49 @@ void    my_free(void *ptr)
 {   
     //take pointer
     //loop in all metadata descriptor and check block_pointer to check if pointer passed in arguement is equal
+    my_log("1");
+    if (ptr == NULL)
+        return;
     struct metadata *metadata = metadata_pool;
     while (metadata->next != NULL)
     {
-            my_log("salut");
+                my_log("2");
             if (ptr == metadata->block_pointer){
                 //check if canary is overwritten by user
+                my_log("3");
+
                 char *ptr_canary = metadata->block_pointer + metadata->block_size - CANARY_SZ;
                 for (int i = 0; i < CANARY_SZ;i++){
                     if (ptr_canary[i] != 'X'){
-                        char *time = get_time();
-                        write_log("%s ERROR FREE %d %p ERROR CANARY IS OVERWRITTEN\n---------------------------------------\n",time,metadata->block_size, ptr);
+                        time_t time = get_time();
+                        write_log("%lu ERROR FREE %d %p ERROR CANARY IS OVERWRITTEN\n---------------------------------------\n",time,metadata->block_size, ptr);
                         exit(0);
                     }
                 }
 
                 //reset all char to 'O'
-                char *ptr_erase = metadata->block_pointer;
+                char *ptr_erase = metadata->block_pointer + metadata->block_size - CANARY_SZ;
                 for (size_t j = 0; j < metadata->block_size + CANARY_SZ; j++){
                     ptr_erase[j] = '0';
-                    ptr_erase++;
                 }
-                char *time = get_time();
-                write_log("%s INFO FREE %d %p\n---------------------------------------\n",time,metadata->block_size, metadata->block_pointer);
+                time_t time = get_time();
+                write_log("%lu INFO FREE %d %p\n---------------------------------------\n",time,metadata->block_size, metadata->block_pointer);
                 //dont set block_size to 0 for next malloc on this descriptor
                 metadata->block_pointer = NULL;
                 break;
 
             }
+            
+            metadata = metadata->next;
     }
-    char *time = get_time();
-    write_log("%s INFO FREE %d %p\n---------------------------------------\n",time,metadata->block_size, ptr);
-
+    my_log("4\n");    
 }
 
 void    *my_calloc(size_t nmemb , size_t size)
 {
     if ((nmemb == 0 || size == 0) || (nmemb == 0 && size == 0)){
-        char *time = get_time();
-        write_log("%s ERROR CALLOC %d nmemb %d size INVALID ARGUMENT\n---------------------------------------\n",time,size, nmemb);
+        time_t time = get_time();
+        write_log("%lu ERROR CALLOC %d nmemb %d size INVALID ARGUMENT\n---------------------------------------\n",time,size, nmemb);
         return ERROR_TO_ALLOCATE;
     }
     if (pool_is_create == 0){
@@ -261,8 +264,8 @@ void    *my_calloc(size_t nmemb , size_t size)
     void *ptr = my_malloc(total_sz);
     my_log("passe le malloc\n");
     if (ptr == NULL){
-        char *time = get_time();
-        write_log("%s ERROR CALLOC %d nmemb %d size\n---------------------------------------\n",time,size, nmemb);
+        time_t time = get_time();
+        write_log("%lu ERROR CALLOC %d nmemb %d size\n---------------------------------------\n",time,size, nmemb);
         return ERROR_TO_ALLOCATE;
     }
     //write all byte allocate with 0
