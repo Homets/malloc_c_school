@@ -18,14 +18,10 @@
 #include "my_secmalloc_private.h"
 
 //global variable
-void    *metadata_pool = NULL;
-void    *data_pool = NULL;
-size_t  metadata_size = 0;
-size_t  data_size = 0;
-int     pool_is_create = 0;
 
 
-void    *my_init_metadata_pool()
+
+static void    *my_init_metadata_pool()
 {
     metadata_size = 12288;
     metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
@@ -50,35 +46,40 @@ void    *my_init_metadata_pool()
     return metadata_pool;
 }
 
-void    *my_init_data_pool()
+static void    *my_init_data_pool()
 {
-
     data_size = 314400;
     data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     return data_pool;
 
 }
 
-void    clean_metadata_pool()
+static void    clean_metadata_pool(void)
 {   
-    my_log("clean 1\n");
+    struct metadata *metadata = metadata_pool;
+    while (metadata->next != NULL)
+    {
+        if (metadata->block_pointer != NULL){
+            my_log("salut");
+        }
+    }
     munmap(metadata_pool,metadata_size);
-    clean_data_pool();
 }
 
-void     clean_data_pool()
+static void     clean_data_pool()
 {
     munmap(data_pool,data_size);
 }
 
 
-time_t    get_time(){
+static time_t    get_time(){
     time_t t = time(&t);
 
     return t;
 }
+
 //Log without heap allocation
-void    my_log(const char *fmt, ...)
+static void    my_log(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap,fmt);
@@ -99,7 +100,7 @@ void    my_log(const char *fmt, ...)
 //timestamp <info | error> FREE <size desallocated if no error> pointer <error>
 //FOR CALLOC
 //timestamp <info | error> CALLOC <size> <ptr | error>
-void    write_log(const char *fmt,...){
+static void    write_log(const char *fmt,...){
 
     const char *log_file_path = secure_getenv(LOG_ENV_VAR); 
 
@@ -129,7 +130,7 @@ void    write_log(const char *fmt,...){
 }
 
 
-void     check_data_pool_size(size_t size)
+static void     check_data_pool_size(size_t size)
 {
     struct metadata *ptr = metadata_pool;
     size_t size_copy = data_size;
@@ -140,7 +141,7 @@ void     check_data_pool_size(size_t size)
         ptr = ptr->next;
     }
     if (increment_size + size > size_copy){
-        data_pool = mremap(data_pool, size_copy, increment_size+ size, 0);
+        data_pool = mremap(data_pool, size_copy, increment_size+ 4096, 0);
         if (data_pool == MAP_FAILED){
             my_log("error reallocate memory");
         }
@@ -149,12 +150,20 @@ void     check_data_pool_size(size_t size)
 }
 
 
-void    *my_malloc(size_t size)
+static void    *my_malloc(size_t size)
 {   
     if (size == 0){
         time_t time = get_time();
         write_log("%lu ERROR MALLOC %d size equal to 0\n---------------------------------------\n",time,size);
         return ERROR_TO_ALLOCATE;
+    }
+    if (pool_is_create == 0){
+        my_init_data_pool();
+        my_init_metadata_pool();
+        atexit(clean_metadata_pool);
+        atexit(clean_data_pool);
+        pool_is_create = 1;
+
     }
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
     char *ptr; 
@@ -205,7 +214,7 @@ void    *my_malloc(size_t size)
     
 }
 
-void    my_free(void *ptr)
+static void    my_free(void *ptr)
 {   
     //take pointer
     //loop in all metadata descriptor and check block_pointer to check if pointer passed in arguement is equal
@@ -250,7 +259,7 @@ void    my_free(void *ptr)
     // my_log("4\n\n");    
 }
 
-void    *my_calloc(size_t nmemb , size_t size)
+static void    *my_calloc(size_t nmemb , size_t size)
 {
     if ((nmemb == 0 || size == 0) || (nmemb == 0 && size == 0)){
         time_t time = get_time();
@@ -263,9 +272,7 @@ void    *my_calloc(size_t nmemb , size_t size)
         pool_is_create = 1;
     }
     size_t total_sz = nmemb * size;
-    my_log("size => %d\n",total_sz);
     void *ptr = my_malloc(total_sz);
-    my_log("passe le malloc\n");
     if (ptr == NULL){
         time_t time = get_time();
         write_log("%lu ERROR CALLOC %d nmemb %d size\n---------------------------------------\n",time,size, nmemb);
@@ -280,8 +287,11 @@ void    *my_calloc(size_t nmemb , size_t size)
     return ptr;
 }
 
-void    *my_realloc(void *ptr, size_t size)
+static void    *my_realloc(void *ptr, size_t size)
 {
+
+    time_t time = get_time();
+    write_log("%lu INFO REALLOC %d size equal to 0\n---------------------------------------\n",time,size);
     (void) ptr;
     (void) size;
     return NULL;    
@@ -295,13 +305,6 @@ void    *my_realloc(void *ptr, size_t size)
 
 void    *malloc(size_t size)
 {
-    if (pool_is_create == 0){
-        my_init_data_pool();
-        my_init_metadata_pool();
-        atexit(clean_metadata_pool);
-        pool_is_create = 1;
-
-    }
     return my_malloc(size);
 }
 void    free(void *ptr)

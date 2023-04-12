@@ -19,11 +19,11 @@
 #define LOG_ENV_VAR "MSM_OUTPUT"
 
 //variable global
-extern void *metadata_pool;
-extern void *data_pool;
-extern size_t metadata_size;
-extern size_t data_size;
-extern int pool_is_create;
+static void    *metadata_pool = NULL;
+static void    *data_pool = NULL;
+static size_t  metadata_size = 0;
+static size_t  data_size = 0;
+static int     pool_is_create = 0;
 //struct
 struct      metadata
 {
@@ -33,7 +33,7 @@ struct      metadata
 
 };
 
-//func
+func
 void        *my_init_metadata_pool();
 
 void        *my_init_data_pool();
