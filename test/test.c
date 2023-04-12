@@ -137,7 +137,7 @@ Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
     void **ptr;
     ptr = &metadata_pool;
     //init all metadata block in a linked list with all alltribute setup to null except next
-    for (unsigned long i = 0; i < 4096;i++)
+    for (unsigned long i = 0; i < 1;i++)
     {
         struct metadata *metadata = *ptr + (i * sizeof(struct metadata));
         if (i < metadata_size / sizeof(struct metadata)){

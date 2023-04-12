@@ -27,16 +27,20 @@ int     pool_is_create = 0;
 
 void    *my_init_metadata_pool()
 {
-    metadata_size = 3144;
+    metadata_size = 12288;
     metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     void **ptr;
     ptr = &metadata_pool;
     //init all metadata block in a linked list with all alltribute setup to null except next
-    for (unsigned long i = 0; i < 131;i++)
+    for (unsigned long i = 0; i < metadata_size / sizeof(struct metadata);i++)
     {
         struct metadata *metadata = *ptr + (i * sizeof(struct metadata));   
-        if (i < metadata_size / sizeof(struct metadata)){
+        if (i < metadata_size / sizeof(struct metadata) -1 ){
             metadata->next = *ptr + ((i + 1) * sizeof(struct metadata));
+            metadata->block_pointer = NULL;
+            metadata->block_size = 0;
+        } else {
+            metadata->next = NULL;
             metadata->block_pointer = NULL;
             metadata->block_size = 0;
         }
@@ -48,6 +52,7 @@ void    *my_init_metadata_pool()
 
 void    *my_init_data_pool()
 {
+
     data_size = 314400;
     data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     return data_pool;
@@ -56,8 +61,9 @@ void    *my_init_data_pool()
 
 void    clean_metadata_pool()
 {   
-    my_log("clean");
+    my_log("clean 1\n");
     munmap(metadata_pool,metadata_size);
+    clean_data_pool();
 }
 
 void     clean_data_pool()
@@ -122,6 +128,7 @@ void    write_log(const char *fmt,...){
 
 }
 
+
 void     check_data_pool_size(size_t size)
 {
     struct metadata *ptr = metadata_pool;
@@ -148,13 +155,6 @@ void    *my_malloc(size_t size)
         time_t time = get_time();
         write_log("%lu ERROR MALLOC %d size equal to 0\n---------------------------------------\n",time,size);
         return ERROR_TO_ALLOCATE;
-    }
-    if (pool_is_create == 0){
-        my_init_data_pool();
-        my_init_metadata_pool();
-        pool_is_create = 1;
-        // atexit(clean_metadata_pool);
-        // atexit(clean_data_pool);
     }
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
     char *ptr; 
@@ -209,16 +209,19 @@ void    my_free(void *ptr)
 {   
     //take pointer
     //loop in all metadata descriptor and check block_pointer to check if pointer passed in arguement is equal
-    my_log("1");
-    if (ptr == NULL)
+    // my_log("ptr => %p", ptr);
+    // my_log("1\n");
+    if (ptr == NULL){
+        // my_log("pointeur null\n");
         return;
+    }
     struct metadata *metadata = metadata_pool;
     while (metadata->next != NULL)
     {
-                my_log("2");
+                // my_log("2");
             if (ptr == metadata->block_pointer){
                 //check if canary is overwritten by user
-                my_log("3");
+                // my_log("3");
 
                 char *ptr_canary = metadata->block_pointer + metadata->block_size - CANARY_SZ;
                 for (int i = 0; i < CANARY_SZ;i++){
@@ -229,11 +232,11 @@ void    my_free(void *ptr)
                     }
                 }
 
-                //reset all char to 'O'
-                char *ptr_erase = metadata->block_pointer + metadata->block_size - CANARY_SZ;
-                for (size_t j = 0; j < metadata->block_size + CANARY_SZ; j++){
-                    ptr_erase[j] = '0';
-                }
+                // //reset all char to 'O'
+                // char *ptr_erase = metadata->block_pointer + metadata->block_size - CANARY_SZ;
+                // for (size_t j = 0; j < metadata->block_size + CANARY_SZ; j++){
+                //     ptr_erase[j] = '0';
+                // }
                 time_t time = get_time();
                 write_log("%lu INFO FREE %d %p\n---------------------------------------\n",time,metadata->block_size, metadata->block_pointer);
                 //dont set block_size to 0 for next malloc on this descriptor
@@ -244,7 +247,7 @@ void    my_free(void *ptr)
             
             metadata = metadata->next;
     }
-    my_log("4\n");    
+    // my_log("4\n\n");    
 }
 
 void    *my_calloc(size_t nmemb , size_t size)
@@ -281,7 +284,7 @@ void    *my_realloc(void *ptr, size_t size)
 {
     (void) ptr;
     (void) size;
-    return NULL;
+    return NULL;    
 
 }
 
@@ -292,6 +295,13 @@ void    *my_realloc(void *ptr, size_t size)
 
 void    *malloc(size_t size)
 {
+    if (pool_is_create == 0){
+        my_init_data_pool();
+        my_init_metadata_pool();
+        atexit(clean_metadata_pool);
+        pool_is_create = 1;
+
+    }
     return my_malloc(size);
 }
 void    free(void *ptr)
