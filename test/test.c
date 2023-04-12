@@ -1,3 +1,16 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*      file:                        __   __   __   __                        */
+/*      test.c                        _) /__  /  \ /  \                       */
+/*                                   /__ \__) \__/ \__/                       */
+/*                                                                            */
+/*   Authors:                                                                 */
+/*      bastien.petitclerc@ecole2600.com                                      */
+/*      raphael.busy@ecole2600.com                                            */
+/*                                                                            */
+/* ************************************************************************** */
+
+
 #define _GNU_SOURCE
 #include <criterion/criterion.h>
 #include <criterion/redirect.h>
@@ -49,13 +62,13 @@ Test(metadata_pool, test_all_metadata_pool)
 {
     my_init_metadata_pool();
     int i = 0;
-    struct metadata *m = metadata_pool;
+    struct metadata_t *m = metadata_pool;
     while( i < 5)
     {
-        my_log("next => %p\n", m->next);
-        my_log("size => %d\n\n", m->block_size);
+        my_log("p_next => %p\n", m->p_next);
+        my_log("size => %d\n\n", m->p_block_pointer);
         i = i + 1;
-        m = m->next;
+        m = m->p_next;
     }
     clean_metadata_pool();
 }
@@ -63,8 +76,6 @@ Test(metadata_pool, test_all_metadata_pool)
 
 Test(metadata_pool, check_metadatablock_edited)
 {
-    // my_init_metadata_pool();
-    // my_init_data_pool();
     my_log("ptr de data %p\n", data_pool);
     void **ptr;
     void **ptr1;
@@ -73,14 +84,11 @@ Test(metadata_pool, check_metadatablock_edited)
     ptr1 = my_malloc(8);
     my_log("\n\nptr => data2 %p\n", ptr1);
 
-    // cr_assert(clean_metadata_pool() == 0);
-    // cr_assert(clean_data_pool() == 0);
 }
 
 Test(data_pool, check_canary_well_written)
 {
-    // my_init_metadata_pool();
-    // my_init_data_pool();
+ 
     size_t sz_data = 8;
     char *ptr = my_malloc(sz_data);
 
@@ -91,8 +99,6 @@ Test(data_pool, check_canary_well_written)
         cr_assert(s == 'X');
     }
     
-    // cr_assert(clean_metadata_pool() == 0);
-    // cr_assert(clean_data_pool() == 0);
 }
 
 Test(data_pool, mremap_is_correct)
@@ -119,14 +125,11 @@ Test(data_pool, mremap_is_correct)
 
 Test(data_pool, test_reallocation_of_data_pool)
 {
-    // my_init_metadata_pool();
-    // my_init_data_pool();
+
     void *ptr;
     ptr = my_malloc(314405);
     my_log("\n\nptr datadata => %p\n\n", ptr);
 
-    // cr_assert(clean_metadata_pool() == 0);
-    // cr_assert(clean_data_pool() == 0);
 }
 
 Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
@@ -136,29 +139,29 @@ Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
 
     void **ptr;
     ptr = &metadata_pool;
-    //init all metadata block in a linked list with all alltribute setup to null except next
+    //init all metadata block in a linked list with all alltribute setup to null except p_next
     for (unsigned long i = 0; i < 1;i++)
     {
-        struct metadata *metadata = *ptr + (i * sizeof(struct metadata));
-        if (i < metadata_size / sizeof(struct metadata)){
-            metadata->next = NULL;
-            metadata->block_pointer = NULL;
-            metadata->block_size = 0;
+        metadata_t *metadata = *ptr + (i * sizeof(struct metadata_t));
+        if (i < metadata_size / sizeof(struct metadata_t)){
+            metadata->p_next = NULL;
+            metadata->p_block_pointer = NULL;
+            metadata->p_block_pointer = 0;
         }
     }
-    struct metadata *metadata_available = metadata_pool;
-    if (metadata_available->next == NULL)
+    struct metadata_t *metadata_available = metadata_pool;
+    if (metadata_available->p_next == NULL)
     {
-        metadata_pool = mremap(metadata_pool,metadata_size, metadata_size + sizeof(struct metadata), 0);
-        metadata_size += sizeof(struct metadata);
+        metadata_pool = mremap(metadata_pool,metadata_size, metadata_size + sizeof(struct metadata_t), 0);
+        metadata_size += sizeof(metadata_t);
     }
-    struct metadata *metadata = *ptr;
-    if (metadata->next == NULL)
+    metadata_t *metadata = *ptr;
+    if (metadata->p_next == NULL)
     {
-        metadata->next = metadata_pool + sizeof(struct metadata);
-        metadata->next->next = NULL;
-        metadata->next->block_size = 1000;
-        cr_assert(metadata->next->block_size == 1000);
+        metadata->p_next = metadata_pool + sizeof(metadata_t);
+        metadata->p_next->p_next = NULL;
+        metadata->p_next->sz_block_size = 1000;
+        cr_assert(metadata->p_next->sz_block_size == 1000);
     }
     // cr_assert(clean_metadata_pool() == 0);
 }
@@ -169,18 +172,18 @@ Test(data_free, test_free)
     // my_init_data_pool();
     size_t sz_data = 8;
     char *ptr = my_malloc(sz_data);
-    struct metadata *first_meta = metadata_pool;
-    my_log("%p\n", first_meta->block_pointer);
-    my_log("%ld", first_meta->block_size);
-    cr_assert(first_meta->block_pointer = ptr);
-    cr_assert(first_meta->block_size = sz_data);
+    struct metadata_t *first_meta = metadata_pool;
+    my_log("%p\n", first_meta->p_block_pointer);
+    my_log("%ld", first_meta->p_block_pointer);
+    cr_assert(first_meta->p_block_pointer = ptr);
+    cr_assert(first_meta->sz_block_size = sz_data);
 
     my_free(ptr);
-    struct metadata *second_meta = metadata_pool;
-    my_log("%p", second_meta->block_pointer);
-    my_log("%ld", second_meta->block_size);
-    cr_assert(second_meta->block_pointer == NULL);
-    cr_assert(second_meta->block_size == 0);
+    struct metadata_t *second_meta = metadata_pool;
+    my_log("%p", second_meta->p_block_pointer);
+    my_log("%ld", second_meta->p_block_pointer);
+    cr_assert(second_meta->p_block_pointer == NULL);
+    cr_assert(second_meta->p_block_pointer == 0);
 
     // cr_assert(clean_metadata_pool() == 0);
     // cr_assert(clean_data_pool() == 0);

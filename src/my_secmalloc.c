@@ -1,4 +1,16 @@
-// cette définition permet d'accéder à mremap lorsqu'on inclue sys/mman.h
+/* ************************************************************************** */
+/*                                                                            */
+/*      file:                        __   __   __   __                        */
+/*      my_secmalloc.c                _) /__  /  \ /  \                       */
+/*                                   /__ \__) \__/ \__/                       */
+/*                                                                            */
+/*   Authors:                                                                 */
+/*      bastien.petitclerc@ecole2600.com                                      */
+/*      raphael.busy@ecole2600.com                                            */
+/*                                                                            */
+/* ************************************************************************** */
+
+
 #define _GNU_SOURCE
 #define _ISOC99_SOURCE
 #include <stdio.h>
@@ -18,68 +30,14 @@
 #include "my_secmalloc_private.h"
 
 //global variable
-
-
-
-static void    *my_init_metadata_pool()
-{
-    metadata_size = 12288;
-    metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-    void **ptr;
-    ptr = &metadata_pool;
-    //init all metadata block in a linked list with all alltribute setup to null except next
-    for (unsigned long i = 0; i < metadata_size / sizeof(struct metadata);i++)
-    {
-        struct metadata *metadata = *ptr + (i * sizeof(struct metadata));   
-        if (i < metadata_size / sizeof(struct metadata) -1 ){
-            metadata->next = *ptr + ((i + 1) * sizeof(struct metadata));
-            metadata->block_pointer = NULL;
-            metadata->block_size = 0;
-        } else {
-            metadata->next = NULL;
-            metadata->block_pointer = NULL;
-            metadata->block_size = 0;
-        }
-    }
-
-    // my_log("metadata pool and chained list setup");
-    return metadata_pool;
-}
-
-static void    *my_init_data_pool()
-{
-    data_size = 314400;
-    data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-    return data_pool;
-
-}
-
-static void    clean_metadata_pool(void)
-{   
-    struct metadata *metadata = metadata_pool;
-    while (metadata->next != NULL)
-    {
-        if (metadata->block_pointer != NULL){
-            my_log("salut");
-        }
-    }
-    munmap(metadata_pool,metadata_size);
-}
-
-static void     clean_data_pool()
-{
-    munmap(data_pool,data_size);
-}
-
-
-static time_t    get_time(){
-    time_t t = time(&t);
-
-    return t;
-}
+void    *metadata_pool = NULL;
+void    *data_pool = NULL;
+size_t  metadata_size = 0;
+size_t  data_size = 0;
+int     pool_is_create = 0;
 
 //Log without heap allocation
-static void    my_log(const char *fmt, ...)
+void    my_log(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap,fmt);
@@ -93,6 +51,72 @@ static void    my_log(const char *fmt, ...)
     
 }
 
+
+void    *my_init_metadata_pool()
+{
+    metadata_size = 12288;
+    metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    void **ptr;
+    ptr = &metadata_pool;
+    //init all metadata block in a linked list with all alltribute setup to null except p_next
+    for (unsigned long i = 0; i < metadata_size / sizeof(struct metadata_t);i++)
+    {
+        struct metadata_t *metadata = *ptr + (i * sizeof(struct metadata_t));   
+        if (i < metadata_size / sizeof(struct metadata_t) -1 ){
+            metadata->p_next = *ptr + ((i + 1) * sizeof(struct metadata_t));
+            metadata->p_block_pointer = NULL;
+            metadata->sz_block_size = 0;
+        } else {
+            metadata->p_next = NULL;
+            metadata->p_block_pointer = NULL;
+            metadata->sz_block_size = 0;
+        }
+    }
+
+    // my_log("metadata pool and chained list setup");
+    return metadata_pool;
+}
+
+void    *my_init_data_pool()
+{
+    data_size = 314400;
+    data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    return data_pool;
+
+}
+
+void     clean_data_pool()
+{
+    munmap(data_pool,data_size);
+}
+
+
+void    clean_metadata_pool(void)
+{   
+    struct metadata_t *metadata = metadata_pool;
+    while (metadata->p_next != NULL)
+    {
+        if (metadata->p_block_pointer != NULL){
+            time_t time = get_time();
+            write_log("%lu MEMORY LEAK!\nAddress => %p\nSize => %d\n---------------------------------------\n",time,metadata->p_block_pointer, metadata->p_block_pointer);
+        }
+        metadata = metadata->p_next;
+    }
+    if (metadata->p_block_pointer != NULL && metadata->p_next == NULL){
+            time_t time = get_time();
+            write_log("%lu MEMORY LEAK!\nAddress => %p\nSize => %d\n---------------------------------------\n",time,metadata->p_block_pointer, metadata->p_block_pointer);
+    }
+
+    munmap(metadata_pool,metadata_size);
+}
+
+
+time_t    get_time(){
+    time_t t = time(&t);
+
+    return t;
+}
+
 //LOG FUNCTION
 //FOR MALLOC
 //timestamp <info | error> MALLOC size pointer <error> 
@@ -100,7 +124,7 @@ static void    my_log(const char *fmt, ...)
 //timestamp <info | error> FREE <size desallocated if no error> pointer <error>
 //FOR CALLOC
 //timestamp <info | error> CALLOC <size> <ptr | error>
-static void    write_log(const char *fmt,...){
+void    write_log(const char *fmt,...){
 
     const char *log_file_path = secure_getenv(LOG_ENV_VAR); 
 
@@ -130,18 +154,18 @@ static void    write_log(const char *fmt,...){
 }
 
 
-static void     check_data_pool_size(size_t size)
+void     check_data_pool_size(size_t size)
 {
-    struct metadata *ptr = metadata_pool;
+    struct metadata_t *ptr = metadata_pool;
     size_t size_copy = data_size;
     size_t increment_size = 0;
     //check if data pool size is enough 
-    while (ptr->next != NULL){
-        increment_size += ptr->block_size;
-        ptr = ptr->next;
+    while (ptr->p_next != NULL){
+        increment_size += ptr->sz_block_size;
+        ptr = ptr->p_next;
     }
     if (increment_size + size > size_copy){
-        data_pool = mremap(data_pool, size_copy, increment_size+ 4096, 0);
+        data_pool = mremap(data_pool, size_copy, increment_size + size, 0);
         if (data_pool == MAP_FAILED){
             my_log("error reallocate memory");
         }
@@ -150,7 +174,7 @@ static void     check_data_pool_size(size_t size)
 }
 
 
-static void    *my_malloc(size_t size)
+void    *my_malloc(size_t size)
 {   
     if (size == 0){
         time_t time = get_time();
@@ -173,13 +197,13 @@ static void    *my_malloc(size_t size)
     //check data length
     check_data_pool_size(size);
     //search a descriptor block available
-    struct metadata *metadata_available = metadata_pool;
-    while (metadata_available->next != NULL){
-        metadata_pool_sz += sizeof(struct metadata);
-        //if a metadata block is null and the block_size is greater than size param 
-        if (metadata_available->block_pointer == NULL &&  metadata_available->block_size <= size - CANARY_SZ){
-            metadata_available->block_pointer = ptr;
-            metadata_available->block_size = size + CANARY_SZ;
+    metadata_t *metadata_available = metadata_pool;
+    while (metadata_available->p_next != NULL){
+        metadata_pool_sz += sizeof(struct metadata_t);
+        //if a metadata block is null and the sz_block_size is greater than size param 
+        if (metadata_available->p_block_pointer == NULL &&  metadata_available->sz_block_size <= size - CANARY_SZ){
+            metadata_available->p_block_pointer = ptr;
+            metadata_available->sz_block_size = size + CANARY_SZ;
             //write data canary
             for (int i = 0; i < CANARY_SZ;i++){
                 ptr[size + i] = 'X';
@@ -189,19 +213,19 @@ static void    *my_malloc(size_t size)
             write_log("%lu INFO MALLOC %d %p\n---------------------------------------\n",time,size, ptr);
             return ptr;
         } else {
-            ptr += metadata_available->block_size;
-            metadata_available = metadata_available->next;
+            ptr += metadata_available->sz_block_size;
+            metadata_available = metadata_available->p_next;
         }
     }
 
     //reallocate the metadata pool adding and completing one descriptor and return the data pool pointer
-    metadata_pool = mremap(metadata_pool,metadata_pool_sz, metadata_pool_sz + sizeof(struct metadata), 0);
-    metadata_size += sizeof(struct metadata);
-    if (metadata_available->next == NULL){
-        ptr += metadata_available->block_size;
-        metadata_available->next = metadata_available + sizeof(struct metadata);
-        metadata_available->next->block_size = size;
-        metadata_available->next->block_pointer = ptr;
+    metadata_pool = mremap(metadata_pool,metadata_pool_sz, metadata_pool_sz + sizeof(struct metadata_t), 0);
+    metadata_size += sizeof(metadata_t);
+    if (metadata_available->p_next == NULL){
+        ptr += metadata_available->sz_block_size;
+        metadata_available->p_next = metadata_available + sizeof(struct metadata_t);
+        metadata_available->p_next->sz_block_size = size;
+        metadata_available->p_next->p_block_pointer = ptr;
         time_t time = get_time();
         write_log("%lu INFO MALLOC %d %p\n---------------------------------------\n",time,size, ptr);
         return ptr;
@@ -214,52 +238,52 @@ static void    *my_malloc(size_t size)
     
 }
 
-static void    my_free(void *ptr)
+void    my_free(void *ptr)
 {   
     //take pointer
-    //loop in all metadata descriptor and check block_pointer to check if pointer passed in arguement is equal
+    //loop in all metadata descriptor and check p_block_pointer to check if pointer passed in arguement is equal
     // my_log("ptr => %p", ptr);
     // my_log("1\n");
     if (ptr == NULL){
         // my_log("pointeur null\n");
         return;
     }
-    struct metadata *metadata = metadata_pool;
-    while (metadata->next != NULL)
+    struct metadata_t *metadata = metadata_pool;
+    while (metadata->p_next != NULL)
     {
                 // my_log("2");
-            if (ptr == metadata->block_pointer){
+            if (ptr == metadata->p_block_pointer){
                 //check if canary is overwritten by user
                 // my_log("3");
 
-                char *ptr_canary = metadata->block_pointer + metadata->block_size - CANARY_SZ;
+                char *ptr_canary = metadata->p_block_pointer + metadata->sz_block_size - CANARY_SZ;
                 for (int i = 0; i < CANARY_SZ;i++){
                     if (ptr_canary[i] != 'X'){
                         time_t time = get_time();
-                        write_log("%lu ERROR FREE %d %p ERROR CANARY IS OVERWRITTEN\n---------------------------------------\n",time,metadata->block_size, ptr);
+                        write_log("%lu ERROR FREE %d %p ERROR CANARY IS OVERWRITTEN\n---------------------------------------\n",time,metadata->sz_block_size, ptr);
                         exit(0);
                     }
                 }
 
                 // //reset all char to 'O'
-                // char *ptr_erase = metadata->block_pointer + metadata->block_size - CANARY_SZ;
-                // for (size_t j = 0; j < metadata->block_size + CANARY_SZ; j++){
+                // char *ptr_erase = metadata->p_block_pointer + metadata->sz_block_size - CANARY_SZ;
+                // for (size_t j = 0; j < metadata->sz_block_size + CANARY_SZ; j++){
                 //     ptr_erase[j] = '0';
                 // }
                 time_t time = get_time();
-                write_log("%lu INFO FREE %d %p\n---------------------------------------\n",time,metadata->block_size, metadata->block_pointer);
-                //dont set block_size to 0 for next malloc on this descriptor
-                metadata->block_pointer = NULL;
+                write_log("%lu INFO FREE %d %p\n---------------------------------------\n",time,metadata->sz_block_size, metadata->p_block_pointer);
+                //dont set sz_block_size to 0 for p_next malloc on this descriptor
+                metadata->p_block_pointer = NULL;
                 break;
 
             }
             
-            metadata = metadata->next;
+            metadata = metadata->p_next;
     }
     // my_log("4\n\n");    
 }
 
-static void    *my_calloc(size_t nmemb , size_t size)
+void    *my_calloc(size_t nmemb , size_t size)
 {
     if ((nmemb == 0 || size == 0) || (nmemb == 0 && size == 0)){
         time_t time = get_time();
@@ -287,7 +311,7 @@ static void    *my_calloc(size_t nmemb , size_t size)
     return ptr;
 }
 
-static void    *my_realloc(void *ptr, size_t size)
+void    *my_realloc(void *ptr, size_t size)
 {
 
     time_t time = get_time();

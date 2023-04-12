@@ -1,9 +1,18 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*      file:                        __   __   __   __                        */
+/*      my_secmalloc_private.h        _) /__  /  \ /  \                       */
+/*                                   /__ \__) \__/ \__/                       */
+/*                                                                            */
+/*   Authors:                                                                 */
+/*      bastien.petitclerc@ecole2600.com                                      */
+/*      raphael.busy@ecole2600.com                                            */
+/*                                                                            */
+/* ************************************************************************** */
+
+
 #ifndef _SECMALLOC_PRIVATE_H
 #define _SECMALLOC_PRIVATE_H
-
-/*
- * Ici vous pourrez faire toutes les déclarations de variables/fonctions pour votre usage interne
- * */
 
 //error
 #define ERROR_CANARY_OVERWRITTEN "ERROR CANARY OVERWRITTEN"
@@ -19,21 +28,21 @@
 #define LOG_ENV_VAR "MSM_OUTPUT"
 
 //variable global
-static void    *metadata_pool = NULL;
-static void    *data_pool = NULL;
-static size_t  metadata_size = 0;
-static size_t  data_size = 0;
-static int     pool_is_create = 0;
+extern void    *metadata_pool;
+extern void    *data_pool;
+extern size_t  metadata_size;
+extern size_t  data_size;
+extern int     pool_is_create;
 //struct
-struct      metadata
+typedef struct      metadata_t
 {
-    void                *block_pointer;
-    size_t              block_size;
-    struct metadata     *next;
+    void                  *p_block_pointer;
+    size_t                sz_block_size;
+    struct metadata_t     *p_next;
 
-};
+} metadata_t;
 
-func
+//func
 void        *my_init_metadata_pool();
 
 void        *my_init_data_pool();
