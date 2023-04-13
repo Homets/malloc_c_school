@@ -30,11 +30,11 @@
 #include "my_secmalloc_private.h"
 
 //global variable
-void    *metadata_pool = NULL;
-void    *data_pool = NULL;
-size_t  metadata_size = 0;
-size_t  data_size = 0;
-int     pool_is_create = 0;
+// void    *metadata_pool = NULL;
+// void    *data_pool = NULL;
+// size_t  metadata_size = 0;
+// size_t  data_size = 0;
+// int     pool_is_create = 0;
 
 //Log without heap allocation
 void    my_log(const char *fmt, ...)
@@ -52,10 +52,30 @@ void    my_log(const char *fmt, ...)
 }
 
 
-void    *my_init_metadata_pool()
+static time_t    get_time(){
+    time_t t = time(&t);
+
+    return t;
+}
+
+//align a value with 4096 because mremap need aligned page
+static size_t   get_aligned_size(size_t size)
+{
+        while (size % ALIGNED_SIZE != 0)
+            size++;
+        return size;
+}
+
+
+static void    *my_init_metadata_pool()
 {
     metadata_size = 12288;
     metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    if (metadata_pool != 0){
+        time_t time = get_time();
+        write_log("%d UNABLE TO CREATE METADATA POOL!\n---------------------------------------\n",time);
+        exit(1);
+    }
     void **ptr;
     ptr = &metadata_pool;
     //init all metadata block in a linked list with all alltribute setup to null except p_next
@@ -76,21 +96,26 @@ void    *my_init_metadata_pool()
     return metadata_pool;
 }
 
-void    *my_init_data_pool()
+static void    *my_init_data_pool()
 {
     data_size = 409600;
     data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-    int lock = mlockall(MCL_CURRENT | MCL_FUTURE);
-    if (lock != 0){
+    if (data_pool != 0){
         time_t time = get_time();
-        write_log("%d UNABLE TO UNLOCK MEMORY!\n---------------------------------------\n",time);
+        write_log("%d UNABLE TO CREATE DATA POOL!\n---------------------------------------\n",time);
+        exit(1);
+    }
+    int i_lock = mlockall(MCL_CURRENT | MCL_FUTURE);
+    if (i_lock != 0){
+        time_t time = get_time();
+        write_log("%d UNABLE TO LOCK MEMORY!\n---------------------------------------\n",time);
     }
     return data_pool;
 
 }
 
 //clean metadata and data and perform metadata analysis to check if memory leak is present by checking block pointer
-void    clean_metadata_pool(void)
+static void    clean_metadata_pool(void)
 {   
     struct metadata_t *metadata = metadata_pool;
     while (metadata->p_next != NULL)
@@ -106,23 +131,26 @@ void    clean_metadata_pool(void)
             write_log("%d MEMORY LEAK!\nAddress => %p\nSize => %d\n---------------------------------------\n",time,metadata->p_block_pointer, metadata->p_block_pointer);
     }
 
-    munmap(metadata_pool,metadata_size);
-    int munlock = munlockall();
-    if (munlock != 0){
+    if (munmap(metadata_pool,metadata_size) == -1){
+        time_t time = get_time();
+        write_log("%d UNABLE TO UNMAP MEMORY!\n---------------------------------------\n",time);
+        exit(1);
+    }
+    
+    int i_munlock = munlockall();
+    if (i_munlock != 0){
         time_t time = get_time();
         write_log("%d UNABLE TO UNLOCK MEMORY!\n---------------------------------------\n",time);
     }
 }
 
-void     clean_data_pool()
+static void     clean_data_pool()
 {
-    munmap(data_pool,data_size);
-}
-
-time_t    get_time(){
-    time_t t = time(&t);
-
-    return t;
+    if (munmap(data_pool,data_size) == -1){
+        time_t time = get_time();
+        write_log("%d UNABLE TO UNMAP MEMORY!\n---------------------------------------\n",time);
+        exit(1);
+    }
 }
 
 //LOG FUNCTION
@@ -163,16 +191,8 @@ void    write_log(const char *fmt,...){
 
 }
 
-//align a value with 4096 because mremap need aligned page
-size_t   get_aligned_size(size_t size)
-{
-        while (size % ALIGNED_SIZE != 0)
-            size++;
-        return size;
-}
-
 //this function will check if the size of 
-void     check_data_pool_size(size_t size)
+static void     check_data_pool_size(size_t size)
 {
     size_t sz_aligned_size = get_aligned_size(size);
     struct metadata_t *ptr = metadata_pool;
@@ -297,10 +317,19 @@ void    my_free(void *ptr)
 
 void    *my_calloc(size_t nmemb , size_t size)
 {
+
     if ((nmemb == 0 || size == 0) || (nmemb == 0 && size == 0)){
         time_t time = get_time();
         write_log("%lu ERROR CALLOC %d nmemb %d size\n INVALID ARGUMENT\n---------------------------------------\n",time,size, nmemb);
         return ERROR_TO_ALLOCATE;
+    }
+    if (pool_is_create == 0){
+        my_init_data_pool();
+        my_init_metadata_pool();
+        atexit(clean_metadata_pool);
+        atexit(clean_data_pool);
+        pool_is_create = 1;
+
     }
     if (pool_is_create == 0){
         my_init_data_pool();
@@ -325,12 +354,38 @@ void    *my_calloc(size_t nmemb , size_t size)
 
 void    *my_realloc(void *ptr, size_t size)
 {
+//     if (pool_is_create == 0){
+//         my_init_data_pool();
+//         my_init_metadata_pool();
+//         atexit(clean_metadata_pool);
+//         atexit(clean_data_pool);
+//         pool_is_create = 1;
 
-    time_t time = get_time();
-    write_log("%lu INFO REALLOC %d\n size equal to 0\n---------------------------------------\n",time,size);
-    (void) ptr;
-    (void) size;
-    return NULL;    
+//     }
+//     if (size == 0)
+//         return NULL;
+//     if (ptr == NULL)
+//         return my_malloc(size);
+
+//     metadata_t *p_it = metadata_pool;
+//     if( size > espace_restant) {
+//         mremap(metadata_pool,metadata_size, metadata_size + sizeof(struct metadata_t), 0);
+
+//     }
+//    while (p_it) {
+//         if (ptr == p_it->metada_data_ptr && ptr->next == NULL) {
+//             memset(ptr, size, 0);    ------------------- maybe pas de memset, juste retiré le canary
+//             ajout canary à la fin
+//        }
+//         if (ptr == p_it->meta_data_ptr && ptr->next != NULL) {
+//              void *copy_block_data = p_it;
+//               void *new = my_malloc(size);
+//                memcpy(new, ptr,)// la size qui doit être copié d'avant data dans la metadonné - la size du canary)
+//                my_free(ptr);
+                
+//        }
+//         p_it = p_it->p_next;    
+//    }   
 
 }
 

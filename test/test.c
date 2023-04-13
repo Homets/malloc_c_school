@@ -27,51 +27,43 @@
 #include "my_secmalloc.h"
 #include "my_secmalloc_private.h"
 
-Test(mmap, test_simple_mmap)
-{
-    void *ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON , -1, 0);
-    cr_expect(ptr != NULL);
-    int res = munmap(ptr, 4096);
-    cr_expect(res == 0);
-}
-
 
 Test(log, test_log, .init=cr_redirect_stderr)
 {   
     my_log("coucou %d\n",12);
 }   
 
-Test(metadata_pool, create_clean_metadata_pool)
-{   
-    my_init_metadata_pool();
-    my_log("%p\n", metadata_pool);
-}
+// Test(metadata_pool, create_clean_metadata_pool)
+// {   
+//     my_init_metadata_pool();
+//     my_log("%p\n", metadata_pool);
+// }
 
-Test(data_pool, create_clean_data_pool)
-{
-    my_init_metadata_pool();
-    my_init_data_pool();
-    my_log("%p\n", data_pool);
-    cr_assert(metadata_pool != NULL);
-    cr_assert(data_pool != NULL);
-    clean_metadata_pool();
-    clean_data_pool();
-}
+// Test(data_pool, create_clean_data_pool)
+// {
+//     my_init_metadata_pool();
+//     my_init_data_pool();
+//     my_log("%p\n", data_pool);
+//     cr_assert(metadata_pool != NULL);
+//     cr_assert(data_pool != NULL);
+//     clean_metadata_pool();
+//     clean_data_pool();
+// }
 
-Test(metadata_pool, test_all_metadata_pool)
-{
-    my_init_metadata_pool();
-    int i = 0;
-    struct metadata_t *m = metadata_pool;
-    while( i < 5)
-    {
-        my_log("p_next => %p\n", m->p_next);
-        my_log("size => %d\n\n", m->p_block_pointer);
-        i = i + 1;
-        m = m->p_next;
-    }
-    clean_metadata_pool();
-}
+// Test(metadata_pool, test_all_metadata_pool)
+// {
+//     my_init_metadata_pool();
+//     int i = 0;
+//     struct metadata_t *m = metadata_pool;
+//     while( i < 5)
+//     {
+//         my_log("p_next => %p\n", m->p_next);
+//         my_log("size => %d\n\n", m->p_block_pointer);
+//         i = i + 1;
+//         m = m->p_next;
+//     }
+//     clean_metadata_pool();
+// }
 
 
 Test(metadata_pool, check_metadatablock_edited)
@@ -122,15 +114,6 @@ Test(data_pool, mremap_is_correct)
     int res = munmap(ptr,18);
     (void)res;
 }
-Test(test_mremap, test_aligned_size)
-{
-    size_t size = 5600;
-    cr_assert(size % ALIGNED_SIZE != 0);
-
-    size = get_aligned_size(size);
-    cr_assert(size % ALIGNED_SIZE == 0);
-
-}
 Test(data_pool, test_reallocation_of_data_pool)
 {
 
@@ -141,39 +124,39 @@ Test(data_pool, test_reallocation_of_data_pool)
 }
 
 //check to reallocate memory and add a metadata descriptor
-Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
-{
-    metadata_size = 24;
-    metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+// Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
+// {
+//     metadata_size = 24;
+//     metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
 
-    void **ptr;
-    ptr = &metadata_pool;
-    //init all metadata block in a linked list with all alltribute setup to null except p_next
-    for (unsigned long i = 0; i < 1;i++)
-    {
-        metadata_t *metadata = *ptr + (i * sizeof(struct metadata_t));
-        if (i < metadata_size / sizeof(struct metadata_t)){
-            metadata->p_next = NULL;
-            metadata->p_block_pointer = NULL;
-            metadata->p_block_pointer = 0;
-        }
-    }
-    struct metadata_t *metadata_available = metadata_pool;
-    if (metadata_available->p_next == NULL)
-    {
-        metadata_pool = mremap(metadata_pool,metadata_size, metadata_size + sizeof(struct metadata_t), 0);
-        metadata_size += sizeof(metadata_t);
-    }
-    metadata_t *metadata = *ptr;
-    if (metadata->p_next == NULL)
-    {
-        metadata->p_next = metadata_pool + sizeof(metadata_t);
-        metadata->p_next->p_next = NULL;
-        metadata->p_next->sz_block_size = 1000;
-        cr_assert(metadata->p_next->sz_block_size == 1000);
-    }
-    // cr_assert(clean_metadata_pool() == 0);
-}
+//     void **ptr;
+//     ptr = &metadata_pool;
+//     //init all metadata block in a linked list with all alltribute setup to null except p_next
+//     for (unsigned long i = 0; i < 1;i++)
+//     {
+//         metadata_t *metadata = *ptr + (i * sizeof(struct metadata_t));
+//         if (i < metadata_size / sizeof(struct metadata_t)){
+//             metadata->p_next = NULL;
+//             metadata->p_block_pointer = NULL;
+//             metadata->p_block_pointer = 0;
+//         }
+//     }
+//     struct metadata_t *metadata_available = metadata_pool;
+//     if (metadata_available->p_next == NULL)
+//     {
+//         metadata_pool = mremap(metadata_pool,metadata_size, metadata_size + sizeof(struct metadata_t), 0);
+//         metadata_size += sizeof(metadata_t);
+//     }
+//     metadata_t *metadata = *ptr;
+//     if (metadata->p_next == NULL)
+//     {
+//         metadata->p_next = metadata_pool + sizeof(metadata_t);
+//         metadata->p_next->p_next = NULL;
+//         metadata->p_next->sz_block_size = 1000;
+//         cr_assert(metadata->p_next->sz_block_size == 1000);
+//     }
+//     // cr_assert(clean_metadata_pool() == 0);
+// }
 
 Test(data_free, test_free)
 {
@@ -216,11 +199,6 @@ Test(test_calloc, check_calloc)
     };
     my_free(ptr);
 
-}
-
-Test(test_log,test_to_get_env_variable){
-    const char *log_path = secure_getenv(LOG_ENV_VAR);
-    printf("%s", log_path);
 }
 
 Test(test_log,test_to_write_log){

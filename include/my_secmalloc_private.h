@@ -27,12 +27,13 @@
 #define LOG_ENV_VAR "MSM_OUTPUT"
 #define ALIGNED_SIZE 4096
 
-//variable globale
-extern void    *metadata_pool;
-extern void    *data_pool;
-extern size_t  metadata_size;
-extern size_t  data_size;
-extern int     pool_is_create;
+
+//global variable
+static void    *metadata_pool = NULL;
+static void    *data_pool = NULL;
+static size_t  metadata_size = 0;
+static size_t  data_size = 0;
+static int     pool_is_create = 0;
 
 //struct
 typedef struct      metadata_t
@@ -44,24 +45,21 @@ typedef struct      metadata_t
 } metadata_t;
 
 //func
-void        *my_init_metadata_pool();
+// void        *my_init_metadata_pool();
 
-void        *my_init_data_pool();
+// void        *my_init_data_pool();
 
-void        clean_metadata_pool();
+// void        clean_metadata_pool();
 
-size_t      get_aligned_size(size_t size);
+// size_t      get_aligned_size(size_t size);
 
-void        clean_data_pool();
+// void        clean_data_pool();
 
-time_t      get_time();
+// time_t      get_time();
 
 void        my_log(const char *fmt,...);
 
 void        write_log(const char *fmt,...);
 
-void        increase_metadata_pool(void *metadata_pool, size_t oldsize, size_t newsize);
-
-void        increase_data_pool(void *data_pool, size_t oldsize, size_t newsize);
 
 #endif
