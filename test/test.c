@@ -224,7 +224,7 @@ Test(test_log,test_to_get_env_variable){
 }
 
 Test(test_log,test_to_write_log){
-    write_log("---------------------------------------\ntest write_log\n---------------------------------------");
+    write_log("---------------------------------------\ntest write_log\n---------------------------------------\n");
 }
 
 // Test(test_log,test_to_get_time){

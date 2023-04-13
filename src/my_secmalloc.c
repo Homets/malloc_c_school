@@ -80,16 +80,16 @@ void    *my_init_data_pool()
 {
     data_size = 409600;
     data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+    int lock = mlockall(MCL_CURRENT | MCL_FUTURE);
+    if (lock != 0){
+        time_t time = get_time();
+        write_log("%d UNABLE TO UNLOCK MEMORY!\n---------------------------------------\n",time);
+    }
     return data_pool;
 
 }
 
-void     clean_data_pool()
-{
-    munmap(data_pool,data_size);
-}
-
-
+//clean metadata and data and perform metadata analysis to check if memory leak is present by checking block pointer
 void    clean_metadata_pool(void)
 {   
     struct metadata_t *metadata = metadata_pool;
@@ -107,8 +107,17 @@ void    clean_metadata_pool(void)
     }
 
     munmap(metadata_pool,metadata_size);
+    int munlock = munlockall();
+    if (munlock != 0){
+        time_t time = get_time();
+        write_log("%d UNABLE TO UNLOCK MEMORY!\n---------------------------------------\n",time);
+    }
 }
 
+void     clean_data_pool()
+{
+    munmap(data_pool,data_size);
+}
 
 time_t    get_time(){
     time_t t = time(&t);
