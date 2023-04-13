@@ -122,12 +122,20 @@ Test(data_pool, mremap_is_correct)
     int res = munmap(ptr,18);
     (void)res;
 }
+Test(test_mremap, test_aligned_size)
+{
+    size_t size = 5600;
+    cr_assert(size % ALIGNED_SIZE != 0);
 
+    size = get_aligned_size(size);
+    cr_assert(size % ALIGNED_SIZE == 0);
+
+}
 Test(data_pool, test_reallocation_of_data_pool)
 {
 
     void *ptr;
-    ptr = my_malloc(409700);
+    ptr = my_malloc(491522);
     my_log("\n\nptr datadata => %p\n\n", ptr);
 
 }
@@ -169,8 +177,6 @@ Test(data_pool, test_reallocation_of_data_pool_and_struct_add)
 
 Test(data_free, test_free)
 {
-    // my_init_metadata_pool();
-    // my_init_data_pool();
     size_t sz_data = 8;
     char *ptr = my_malloc(sz_data);
     struct metadata_t *first_meta = metadata_pool;
@@ -186,8 +192,6 @@ Test(data_free, test_free)
     cr_assert(second_meta->p_block_pointer == NULL);
     cr_assert(second_meta->p_block_pointer == 0);
 
-    // cr_assert(clean_metadata_pool() == 0);
-    // cr_assert(clean_data_pool() == 0);
 }
 
 Test(data_free, check_canary_overwritten)

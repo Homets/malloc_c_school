@@ -25,6 +25,7 @@
 //constant
 #define CANARY_SZ 8
 #define LOG_ENV_VAR "MSM_OUTPUT"
+#define ALIGNED_SIZE 4096
 
 //variable globale
 extern void    *metadata_pool;
@@ -48,6 +49,8 @@ void        *my_init_metadata_pool();
 void        *my_init_data_pool();
 
 void        clean_metadata_pool();
+
+size_t      get_aligned_size(size_t size);
 
 void        clean_data_pool();
 

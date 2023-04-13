@@ -154,27 +154,39 @@ void    write_log(const char *fmt,...){
 
 }
 
+//align a value with 4096 because mremap need aligned page
+size_t   get_aligned_size(size_t size)
+{
+        while (size % ALIGNED_SIZE != 0)
+            size++;
+        return size;
+}
+
 //this function will check if the size of 
 void     check_data_pool_size(size_t size)
 {
+    size_t sz_aligned_size = get_aligned_size(size);
     struct metadata_t *ptr = metadata_pool;
-    size_t size_copy = data_size;   
-    size_t increment_size = 0;
+    size_t sz_size_copy = data_size;   
+    size_t sz_increment_size = 0;
     //check if data pool size is enough 
     while (ptr->p_next != NULL){
-        increment_size += ptr->sz_block_size;
+        sz_increment_size += ptr->sz_block_size;
         ptr = ptr->p_next;
     }
-    if (increment_size + size > size_copy){
-        data_pool = mremap(data_pool, size_copy, increment_size + size, 0);
+    if (sz_increment_size + sz_aligned_size > sz_size_copy){
+        data_pool = mremap(data_pool, sz_size_copy, sz_increment_size + sz_aligned_size, 0);
         if (data_pool == MAP_FAILED){
-            write_log("%lu ERROR INCREASE DATA POOL SIZE\n---------------------------------------\n",time,size);
+            time_t time = get_time();
+            write_log("%lu ERROR INCREASE DATA POOL SIZE\n---------------------------------------\n",time,sz_aligned_size);
 
         }
-        data_size = data_size + size;
+        data_size = data_size + sz_aligned_size;
+        time_t time = get_time();
+        write_log("%lu INFO INCREASE DATA POOL SIZE\n---------------------------------------\n",time,sz_aligned_size);
+
     }
 }
-
 
 void    *my_malloc(size_t size)
 {   

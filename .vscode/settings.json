@@ -6,6 +6,10 @@
         "criterion.h": "c",
         "redirect.h": "c",
         "my_secmalloc.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "array": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "utility": "c"
     }
 }
