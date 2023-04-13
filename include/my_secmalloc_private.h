@@ -10,7 +10,6 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-
 #ifndef _SECMALLOC_PRIVATE_H
 #define _SECMALLOC_PRIVATE_H
 
@@ -27,12 +26,13 @@
 #define CANARY_SZ 8
 #define LOG_ENV_VAR "MSM_OUTPUT"
 
-//variable global
+//variable globale
 extern void    *metadata_pool;
 extern void    *data_pool;
 extern size_t  metadata_size;
 extern size_t  data_size;
 extern int     pool_is_create;
+
 //struct
 typedef struct      metadata_t
 {
