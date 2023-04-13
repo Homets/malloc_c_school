@@ -30,11 +30,11 @@
 #include "my_secmalloc_private.h"
 
 //global variable
-// void    *metadata_pool = NULL;
-// void    *data_pool = NULL;
-// size_t  metadata_size = 0;
-// size_t  data_size = 0;
-// int     pool_is_create = 0;
+void    *metadata_pool = NULL;
+void    *data_pool = NULL;
+size_t  metadata_size = 0;
+size_t  data_size = 0;
+int     pool_is_create = 0;
 
 //Log without heap allocation
 void    my_log(const char *fmt, ...)
@@ -51,117 +51,11 @@ void    my_log(const char *fmt, ...)
     
 }
 
-
-static time_t    get_time(){
-    time_t t = time(&t);
-
-    return t;
-}
-
-//align a value with 4096 because mremap need aligned page
-static size_t   get_aligned_size(size_t size)
-{
-        while (size % ALIGNED_SIZE != 0)
-            size++;
-        return size;
-}
-
-
-static void    *my_init_metadata_pool()
-{
-    metadata_size = 12288;
-    metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-    if (metadata_pool != 0){
-        time_t time = get_time();
-        write_log("%d UNABLE TO CREATE METADATA POOL!\n---------------------------------------\n",time);
-        exit(1);
-    }
-    void **ptr;
-    ptr = &metadata_pool;
-    //init all metadata block in a linked list with all alltribute setup to null except p_next
-    for (unsigned long i = 0; i < metadata_size / sizeof(struct metadata_t);i++)
-    {
-        struct metadata_t *metadata = *ptr + (i * sizeof(struct metadata_t));   
-        if (i < metadata_size / sizeof(struct metadata_t) -1 ){
-            metadata->p_next = *ptr + ((i + 1) * sizeof(struct metadata_t));
-            metadata->p_block_pointer = NULL;
-            metadata->sz_block_size = 0;
-        } else {
-            metadata->p_next = NULL;
-            metadata->p_block_pointer = NULL;
-            metadata->sz_block_size = 0;
-        }
-    }
-
-    return metadata_pool;
-}
-
-static void    *my_init_data_pool()
-{
-    data_size = 409600;
-    data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
-    if (data_pool != 0){
-        time_t time = get_time();
-        write_log("%d UNABLE TO CREATE DATA POOL!\n---------------------------------------\n",time);
-        exit(1);
-    }
-    int i_lock = mlockall(MCL_CURRENT | MCL_FUTURE);
-    if (i_lock != 0){
-        time_t time = get_time();
-        write_log("%d UNABLE TO LOCK MEMORY!\n---------------------------------------\n",time);
-    }
-    return data_pool;
-
-}
-
-//clean metadata and data and perform metadata analysis to check if memory leak is present by checking block pointer
-static void    clean_metadata_pool(void)
-{   
-    struct metadata_t *metadata = metadata_pool;
-    while (metadata->p_next != NULL)
-    {
-        if (metadata->p_block_pointer != NULL){
-            time_t time = get_time();
-            write_log("%d MEMORY LEAK!\nAddress => %p\nSize => %d\n---------------------------------------\n",time,metadata->p_block_pointer, metadata->p_block_pointer);
-        }
-        metadata = metadata->p_next;
-    }
-    if (metadata->p_block_pointer != NULL && metadata->p_next == NULL){
-            time_t time = get_time();
-            write_log("%d MEMORY LEAK!\nAddress => %p\nSize => %d\n---------------------------------------\n",time,metadata->p_block_pointer, metadata->p_block_pointer);
-    }
-
-    if (munmap(metadata_pool,metadata_size) == -1){
-        time_t time = get_time();
-        write_log("%d UNABLE TO UNMAP MEMORY!\n---------------------------------------\n",time);
-        exit(1);
-    }
-    
-    int i_munlock = munlockall();
-    if (i_munlock != 0){
-        time_t time = get_time();
-        write_log("%d UNABLE TO UNLOCK MEMORY!\n---------------------------------------\n",time);
-    }
-}
-
-static void     clean_data_pool()
-{
-    if (munmap(data_pool,data_size) == -1){
-        time_t time = get_time();
-        write_log("%d UNABLE TO UNMAP MEMORY!\n---------------------------------------\n",time);
-        exit(1);
-    }
-}
-
-//LOG FUNCTION
-//for malloc
-//timestamp <info | error> MALLOC size pointer <error> 
-//for free
-//timestamp <info | error> FREE <size desallocated if no error> pointer <error>
-//for calloc
-//timestamp <info | error> CALLOC <size> <ptr | error>
-//for realloc
-//timestamp <info | error> REALLOC <old size> <new size> <ptr | error>
+//log file write function
+//for malloc => timestamp <info | error> MALLOC size pointer <error> 
+//for free => timestamp <info | error> FREE <size desallocated if no error> pointer <error>
+//for calloc => timestamp <info | error> CALLOC <size> <ptr | error>
+//for realloc timestamp <info | error> REALLOC <old size> <new size> <ptr | error>
 void    write_log(const char *fmt,...){
 
     const char *log_file_path = secure_getenv(LOG_ENV_VAR); 
@@ -190,9 +84,104 @@ void    write_log(const char *fmt,...){
     }
 
 }
+//get timestamp
+time_t    get_time(){
+    time_t t = time(&t);
 
-//this function will check if the size of 
-static void     check_data_pool_size(size_t size)
+    return t;
+}
+
+//align a value with 4096 because mremap need aligned page
+size_t   get_aligned_size(size_t size)
+{
+        while (size % ALIGNED_SIZE != 0)
+            size++;
+        return size;
+}
+
+//init data pool and setup all descriptor
+void    *my_init_metadata_pool()
+{
+    metadata_size = 12288;
+    metadata_pool = mmap(NULL, metadata_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+
+    void **ptr;
+    ptr = &metadata_pool;
+    //init all metadata block in a linked list with all alltribute setup to null except p_next
+    for (unsigned long i = 0; i < metadata_size / sizeof(struct metadata_t);i++)
+    {
+        struct metadata_t *metadata = *ptr + (i * sizeof(struct metadata_t));   
+        if (i < metadata_size / sizeof(struct metadata_t) -1 ){
+            metadata->p_next = *ptr + ((i + 1) * sizeof(struct metadata_t));
+            metadata->p_block_pointer = NULL;
+            metadata->sz_block_size = 0;
+        } else {
+            metadata->p_next = NULL;
+            metadata->p_block_pointer = NULL;
+            metadata->sz_block_size = 0;
+        }
+    }
+
+    return metadata_pool;
+}
+//init data pool and lock all memory space of process in RAM
+void    *my_init_data_pool()
+{
+    data_size = 409600;
+    data_pool = mmap(NULL,data_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+
+    int i_lock = mlockall(MCL_CURRENT | MCL_FUTURE);
+    if (i_lock != 0){
+        time_t time = get_time();
+        write_log("%d UNABLE TO LOCK MEMORY!\n---------------------------------------\n",time);
+    }
+    return data_pool;
+
+}
+
+//clean metadata and data and perform metadata analysis to check if memory leak is present by checking block pointer
+void    clean_metadata_pool(void)
+{   
+    struct metadata_t *metadata = metadata_pool;
+    while (metadata->p_next != NULL)
+    {
+        if (metadata->p_block_pointer != NULL){
+            time_t time = get_time();
+            write_log("%d MEMORY LEAK!\nAddress => %p\nSize => %d\n---------------------------------------\n",time,metadata->p_block_pointer, metadata->p_block_pointer);
+        }
+        metadata = metadata->p_next;
+    }
+    if (metadata->p_block_pointer != NULL && metadata->p_next == NULL){
+            time_t time = get_time();
+            write_log("%d MEMORY LEAK!\nAddress => %p\nSize => %d\n---------------------------------------\n",time,metadata->p_block_pointer, metadata->p_block_pointer);
+    }
+
+    if (munmap(metadata_pool,metadata_size) == -1){
+        time_t time = get_time();
+        write_log("%d UNABLE TO UNMAP MEMORY!\n---------------------------------------\n",time);
+        exit(1);
+    }
+    
+}
+
+//unlock memory and clean unmap data pool
+void     clean_data_pool()
+{
+
+    int i_munlock = munlockall();
+    if (i_munlock != 0){
+        time_t time = get_time();
+        write_log("%d UNABLE TO UNLOCK MEMORY!\n---------------------------------------\n",time);
+    }
+    if (munmap(data_pool,data_size) == -1){
+        time_t time = get_time();
+        write_log("%d UNABLE TO UNMAP MEMORY!\n---------------------------------------\n",time);
+        exit(1);
+    }
+}
+
+//this function will check if the size of allocated block + new block is greater than the datapool size and mremap
+void     check_data_pool_size(size_t size)
 {
     size_t sz_aligned_size = get_aligned_size(size);
     struct metadata_t *ptr = metadata_pool;
@@ -232,17 +221,15 @@ void    *my_malloc(size_t size)
         pool_is_create = 1;
 
     }
+
     //var used to add size of a block every time a metadata is already taken for avoid the the allocation of already used memory
     char *ptr; 
     ptr = data_pool;
-    unsigned long metadata_pool_sz = metadata_size; //size will be used for mremap if all metadata block are already used
-
     //check data length
     check_data_pool_size(size);
     //search a descriptor block available
     metadata_t *metadata_available = metadata_pool;
     while (metadata_available->p_next != NULL){
-        metadata_pool_sz += sizeof(struct metadata_t);
         //if a metadata block is null and the sz_block_size is greater than size param 
         if (metadata_available->p_block_pointer == NULL &&  metadata_available->sz_block_size <= size - CANARY_SZ){
             metadata_available->p_block_pointer = ptr;
@@ -262,7 +249,7 @@ void    *my_malloc(size_t size)
     }
 
     //reallocate the metadata pool adding and completing one descriptor and return the data pool pointer
-    metadata_pool = mremap(metadata_pool,metadata_pool_sz, metadata_pool_sz + sizeof(struct metadata_t), 0);
+    metadata_pool = mremap(metadata_pool,metadata_size, metadata_size + sizeof(struct metadata_t), 0);
     metadata_size += sizeof(metadata_t);
     if (metadata_available->p_next == NULL){
         ptr += metadata_available->sz_block_size;
@@ -354,6 +341,9 @@ void    *my_calloc(size_t nmemb , size_t size)
 
 void    *my_realloc(void *ptr, size_t size)
 {
+    (void)ptr;
+    (void)size;
+    return NULL;
 //     if (pool_is_create == 0){
 //         my_init_data_pool();
 //         my_init_metadata_pool();
@@ -369,7 +359,7 @@ void    *my_realloc(void *ptr, size_t size)
 
 //     metadata_t *p_it = metadata_pool;
 //     if( size > espace_restant) {
-//         mremap(metadata_pool,metadata_size, metadata_size + sizeof(struct metadata_t), 0);
+//     mremap(metadata_pool,metadata_pool_sz, metadata_pool_sz + sizeof(struct metadata_t), 0);
 
 //     }
 //    while (p_it) {
